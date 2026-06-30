@@ -239,7 +239,7 @@ const tools = [
     text-decoration: none;
     color: inherit;
     box-shadow: var(--shadow-sm);
-    transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+    transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out), border-color 0.4s var(--ease-out);
     position: relative;
     overflow: hidden;
   }
@@ -248,21 +248,21 @@ const tools = [
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, var(--color-primary-soft) 0%, transparent 60%);
+    background: linear-gradient(180deg, var(--color-primary-tint) 0%, transparent 70%);
     opacity: 0;
-    transition: opacity 0.3s var(--ease-out);
+    transition: opacity 0.4s var(--ease-out);
     pointer-events: none;
     z-index: 0;
   }
 
   .tool-card:hover {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: var(--shadow-lg), 0 0 0 1px var(--color-primary-ring);
-    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), 0 12px 24px -8px var(--color-primary-ring);
+    border-color: var(--color-border-strong);
   }
 
   .tool-card:hover::before {
-    opacity: 0.6;
+    opacity: 1;
   }
 
   .tool-icon, .tool-content {
