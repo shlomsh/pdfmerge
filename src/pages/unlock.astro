@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
-import PdfUnlockTool from '../components/PdfUnlockTool.jsx';
+import PdfSecurityTool from '../components/PdfSecurityTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
@@ -38,7 +38,7 @@ const faq = [
 
   <main>
     <section id="app" aria-label="PDF unlock tool">
-      <PdfUnlockTool client:load />
+      <PdfSecurityTool client:load intent="unlock" />
     </section>
   </main>
 

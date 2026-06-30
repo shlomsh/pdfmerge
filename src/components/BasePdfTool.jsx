@@ -5,7 +5,8 @@ export default function BasePdfTool({
   onFilesAdded, 
   children,
   multiple = true,
-  accept = "application/pdf"
+  accept = "application/pdf",
+  emptyStateMessage
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -47,7 +48,7 @@ export default function BasePdfTool({
 
         {!hasFiles && (
           <p class="dropzone-text">
-            <strong>Drop PDF{multiple ? 's' : ''} here</strong>
+            <strong>{emptyStateMessage || `Drop PDF${multiple ? 's' : ''} here`}</strong>
           </p>
         )}
 

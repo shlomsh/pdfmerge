@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { unlockPdf, WrongPasswordError } from '../lib/unlock.js';
+import { isPdfEncrypted, protectPdf, unlockPdf, WrongPasswordError, SecurityError } from '../lib/security.js';
 import BasePdfTool from './BasePdfTool.jsx';
 
-export default function PdfUnlockTool() {
+export default function PdfSecurityTool({ intent = 'unlock' }) {
   const [file, setFile] = useState(null);
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('idle'); // idle | processing | done | error
+  const [mode, setMode] = useState(null); // 'unlock' | 'protect' | null
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   const downloadRef = useRef(null);
@@ -25,13 +26,26 @@ export default function PdfUnlockTool() {
     });
   };
 
-  const handleFilesAdded = (files) => {
+  const handleFilesAdded = async (files) => {
     const incoming = Array.from(files).filter((f) => f.type === 'application/pdf');
     if (incoming.length === 0) return;
-    setFile(incoming[0]);
+    
+    const selectedFile = incoming[0];
+    setFile(selectedFile);
     setPassword('');
     resetOutput();
-    setAnnouncement(`File "${incoming[0].name}" loaded. Enter its password to unlock.`);
+    setMode(null);
+    setAnnouncement(`Checking file "${selectedFile.name}"...`);
+
+    const encrypted = await isPdfEncrypted(selectedFile);
+    const newMode = encrypted ? 'unlock' : 'protect';
+    setMode(newMode);
+    
+    if (newMode === 'unlock') {
+      setAnnouncement(`File "${selectedFile.name}" loaded. Enter its password to unlock.`);
+    } else {
+      setAnnouncement(`File "${selectedFile.name}" loaded. Enter a password to protect it.`);
+    }
   };
 
   const handlePasswordChange = (event) => {
@@ -39,27 +53,34 @@ export default function PdfUnlockTool() {
     if (status !== 'idle') resetOutput();
   };
 
-  const handleUnlock = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!file) return;
+    if (!file || !password || !mode) return;
+    
     setStatus('processing');
-    setAnnouncement('Unlocking PDF…');
+    setAnnouncement(mode === 'unlock' ? 'Unlocking PDF…' : 'Protecting PDF…');
 
     try {
-      const blob = await unlockPdf(file, password);
+      const blob = mode === 'unlock' 
+        ? await unlockPdf(file, password)
+        : await protectPdf(file, password);
+        
       setDownloadUrl((previous) => {
         if (previous) URL.revokeObjectURL(previous);
         return URL.createObjectURL(blob);
       });
       setStatus('done');
-      setAnnouncement('Your unlocked PDF is ready to download.');
+      setAnnouncement(mode === 'unlock' 
+        ? 'Your unlocked PDF is ready to download.' 
+        : 'Your protected PDF is ready to download.'
+      );
     } catch (err) {
       console.error(err);
       setStatus('error');
       if (err instanceof WrongPasswordError) {
         setAnnouncement('Incorrect password.');
       } else {
-        setAnnouncement('Failed to unlock PDF.');
+        setAnnouncement(err.message || 'An error occurred.');
       }
       passwordRef.current?.focus();
       passwordRef.current?.select();
@@ -69,6 +90,7 @@ export default function PdfUnlockTool() {
   const reset = () => {
     setFile(null);
     setPassword('');
+    setMode(null);
     resetOutput();
     setAnnouncement('Cleared. Choose a PDF file to start again.');
   };
@@ -76,8 +98,13 @@ export default function PdfUnlockTool() {
   const hasFiles = !!file;
 
   return (
-    <BasePdfTool hasFiles={hasFiles} onFilesAdded={handleFilesAdded} multiple={false}>
-      {hasFiles && (
+    <BasePdfTool 
+      hasFiles={hasFiles} 
+      onFilesAdded={handleFilesAdded} 
+      multiple={false}
+      emptyStateMessage={intent === 'unlock' ? 'Drop PDF here to unlock' : 'Drop PDF here to protect'}
+    >
+      {hasFiles && mode && (
         <div class="tool-workspace">
           <div class="list-header">
             <span class="list-count">{file.name}</span>
@@ -86,19 +113,19 @@ export default function PdfUnlockTool() {
             </button>
           </div>
 
-          <form class="unlock-form" onSubmit={handleUnlock}>
-            <label class="unlock-label" htmlFor="unlock-password">
-              PDF password
+          <form class="unlock-form" onSubmit={handleSubmit}>
+            <label class="unlock-label" htmlFor="security-password">
+              {mode === 'unlock' ? 'PDF password' : 'Set Password'}
             </label>
             <input
               ref={passwordRef}
-              id="unlock-password"
+              id="security-password"
               class="unlock-password-input"
               type="password"
               value={password}
               onInput={handlePasswordChange}
-              placeholder="Enter the PDF's password"
-              autoComplete="off"
+              placeholder={mode === 'unlock' ? "Enter the PDF's password" : "Enter a new password"}
+              autoComplete={mode === 'unlock' ? "off" : "new-password"}
               autoFocus
             />
 
@@ -107,7 +134,9 @@ export default function PdfUnlockTool() {
               class={`merge-button${status === 'processing' ? ' is-merging' : ''}${status === 'done' ? ' is-done' : ''}`}
               disabled={!password || status === 'processing'}
             >
-              {status === 'processing' ? 'Unlocking…' : 'Unlock PDF'}
+              {status === 'processing' 
+                ? (mode === 'unlock' ? 'Unlocking…' : 'Protecting…') 
+                : (mode === 'unlock' ? 'Unlock PDF' : 'Protect PDF')}
             </button>
           </form>
 
@@ -119,7 +148,7 @@ export default function PdfUnlockTool() {
                 <circle cx="12" cy="16" r="1" fill="currentColor" />
               </svg>
               <span>
-                <strong>That didn't work.</strong> The password may be incorrect, or the file isn't password-protected.
+                <strong>That didn't work.</strong> {mode === 'unlock' ? 'The password may be incorrect.' : 'The file might already be encrypted or corrupted.'}
               </span>
             </div>
           )}
@@ -130,13 +159,13 @@ export default function PdfUnlockTool() {
                 ref={downloadRef}
                 class="download-button"
                 href={downloadUrl}
-                download={`${file.name.replace(/\.pdf$/i, '')}_unlocked.pdf`}
+                download={`${file.name.replace(/\.pdf$/i, '')}_${mode}ed.pdf`}
               >
                 <svg class="download-check" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" class="check-circle" />
                   <path d="M7.5 12.5l3 3 6-6.5" class="check-mark" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
                 </svg>
-                Download Unlocked PDF
+                Download {mode === 'unlock' ? 'Unlocked' : 'Protected'} PDF
               </a>
               <button type="button" class="start-over" onClick={reset}>
                 Start over

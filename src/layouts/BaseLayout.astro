@@ -7,6 +7,7 @@ interface Props {
 
 const { title, description, noindex = false } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const isHome = Astro.url.pathname === '/';
 ---
 
 <!doctype html>
@@ -42,6 +43,16 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <slot name="head" />
   </head>
   <body>
+    {!isHome && (
+      <nav class="breadcrumb">
+        <a href="/">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          All Tools
+        </a>
+      </nav>
+    )}
     <slot />
     <script>
       import { inject } from '@vercel/analytics';

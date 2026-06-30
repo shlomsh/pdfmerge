@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
-import PdfProtectTool from '../components/PdfProtectTool.jsx';
+import PdfSecurityTool from '../components/PdfSecurityTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
@@ -38,7 +38,7 @@ const faq = [
 
   <main>
     <section id="app" aria-label="PDF protect tool">
-      <PdfProtectTool client:load />
+      <PdfSecurityTool client:load intent="protect" />
     </section>
   </main>
 
