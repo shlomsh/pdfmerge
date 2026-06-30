@@ -1,12 +1,8 @@
 ---
-// Per-page structured data. Only emit HowTo / FAQPage when the page actually
-// renders that content visibly — Google treats HowTo/FAQ JSON-LD that doesn't
-// match on-page content as a structured-data violation. Pass `howTo` / `faq`
-// from a page only when its visible markup mirrors them.
-interface HowToStep {
-  name: string;
-  text: string;
-}
+// Per-page structured data. Only emit FAQPage when the page actually renders
+// that content visibly — Google treats FAQ JSON-LD that doesn't match
+// on-page content as a structured-data violation. Pass `faq` from a page
+// only when its visible markup mirrors it.
 interface FaqItem {
   question: string;
   answer: string;
@@ -14,19 +10,23 @@ interface FaqItem {
 interface Props {
   name?: string;
   description: string;
-  howTo?: { name: string; steps: HowToStep[] };
   faq?: FaqItem[];
 }
 
 const {
   name = 'PDkef',
   description,
-  howTo,
   faq,
 } = Astro.props;
 
 const siteUrl = Astro.site?.toString().replace(/\/$/, '') ?? '';
 const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+
+const author = {
+  '@type': 'Person',
+  name: 'Shlomi Shemesh',
+  url: 'https://github.com/shlomsh',
+};
 
 const softwareApp = {
   '@context': 'https://schema.org',
@@ -37,17 +37,8 @@ const softwareApp = {
   url: pageUrl,
   description,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-};
-
-const howToSchema = howTo && {
-  '@context': 'https://schema.org',
-  '@type': 'HowTo',
-  name: howTo.name,
-  step: howTo.steps.map((s) => ({
-    '@type': 'HowToStep',
-    name: s.name,
-    text: s.text,
-  })),
+  author,
+  creator: author,
 };
 
 const faqSchema = faq && {
@@ -62,5 +53,4 @@ const faqSchema = faq && {
 ---
 
 <script type="application/ld+json" set:html={JSON.stringify(softwareApp)} />
-{howToSchema && <script type="application/ld+json" set:html={JSON.stringify(howToSchema)} />}
 {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}

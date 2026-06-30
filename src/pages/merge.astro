@@ -9,15 +9,7 @@ const title = 'Merge PDF Online Free - Combine PDFs in Your Browser | PDkef';
 const description =
   'Merge PDF files online for free. Drag, reorder, and combine PDFs in your browser instantly. No upload, no signup, no watermark.';
 
-// Structured data mirrors the visible HowTo + FAQ rendered below.
-const howTo = {
-  name: 'How to merge PDF files online for free',
-  steps: [
-    { name: 'Add your PDFs', text: 'Select or drag-and-drop the PDF files you want to combine.' },
-    { name: 'Reorder them', text: 'Sort by name or date, or drag files into the order you want.' },
-    { name: 'Merge and download', text: 'Click Merge PDFs and download your single combined PDF file.' },
-  ],
-};
+// FAQ schema mirrors the visible FAQ rendered below.
 const faq = [
   { question: 'Is PDkef really free?', answer: 'Yes. PDkef is completely free, with no limits, no signup, and no watermark on your merged PDF.' },
   { question: 'Are my files uploaded to a server?', answer: 'No. PDkef runs entirely in your browser. Your PDF files are never sent over the network - they stay on your device the entire time.' },
@@ -28,7 +20,7 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Merge PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Merge PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>

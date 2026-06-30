@@ -9,15 +9,6 @@ const title = 'Compress PDF Online Free - Reduce PDF File Size | PDkef';
 const description =
   'Compress PDF files online for free. Reduce the file size of your documents without losing quality. 100% private, runs in your browser.';
 
-const howTo = {
-  name: 'How to compress PDF files online for free',
-  steps: [
-    { name: 'Upload your PDF', text: 'Select or drag-and-drop the PDF file you want to compress.' },
-    { name: 'Choose compression level', text: 'Select Extreme, Recommended, or High Quality compression option based on your needs.' },
-    { name: 'Compress and download', text: 'Click Compress PDF, view your size savings, and download the optimized PDF.' },
-  ],
-};
-
 const faq = [
   { question: 'Is the PDF compression secure?', answer: 'Yes. The compression is 100% client-side and runs entirely in your browser. Your files are never uploaded to any server, keeping your data private.' },
   { question: 'What is the difference between the compression levels?', answer: 'Extreme compression reduces file size by 60-80% using 72 DPI images. Recommended compression reduces size by 40-60% at 110 DPI. High Quality compression reduces size by 10-30% at 150 DPI.' },
@@ -29,12 +20,12 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Compress PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Compress PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>
     <h1>Compress PDF online, free</h1>
-    <p>Reduce the size of your PDF files instantly. Secure, client-side compression.</p>
+    <p>Reduce the size of your PDF files instantly - even down to a specific target like 100KB for strict portal upload limits. Tax records, applications, and scanned IDs are compressed entirely on your device, never uploaded to a server.</p>
   </header>
 
   <main>

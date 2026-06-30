@@ -9,15 +9,6 @@ const title = 'Unlock PDF Online Free - Remove PDF Password | PDkef';
 const description =
   'Remove a password from a PDF file online for free. Enter the password once and download an unlocked copy. 100% private, runs in your browser.';
 
-const howTo = {
-  name: 'How to unlock a password-protected PDF online for free',
-  steps: [
-    { name: 'Upload your PDF', text: 'Select or drag-and-drop the password-protected PDF file.' },
-    { name: 'Enter the password', text: 'Type the password currently required to open the PDF.' },
-    { name: 'Unlock and download', text: 'Click Unlock PDF and download a copy with the password removed.' },
-  ],
-};
-
 const faq = [
   { question: 'Is unlocking a PDF here secure?', answer: 'Yes. The password and the file are processed 100% client-side, entirely in your browser. Nothing is uploaded to any server.' },
   { question: 'Do I need to know the PDF’s password?', answer: 'Yes. This tool removes a password you already know from a PDF - it does not crack, guess, or recover unknown passwords.' },
@@ -28,7 +19,7 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Unlock PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Unlock PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>

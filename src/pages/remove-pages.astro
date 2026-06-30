@@ -9,16 +9,7 @@ const title = 'Remove Pages from PDF Online Free - Delete PDF Pages | PDkef';
 const description =
   'Delete unwanted pages from your PDF document online for free. Visual page grid selection, fast and 100% private in-browser processing. No upload required.';
 
-// Structured data mirrors the visible HowTo + FAQ rendered below.
-const howTo = {
-  name: 'How to remove pages from a PDF online for free',
-  steps: [
-    { name: 'Add your PDF file', text: 'Select or drag-and-drop the PDF file from your device.' },
-    { name: 'Select pages to delete', text: 'Click on the page thumbnails in the grid to mark them for removal. Unwanted pages will be dimmed.' },
-    { name: 'Apply changes and download', text: 'Click the Remove Pages button to process and download your updated PDF file.' },
-  ],
-};
-
+// FAQ schema mirrors the visible FAQ rendered below.
 const faq = [
   {
     question: 'Are my PDF files uploaded to your servers?',
@@ -41,7 +32,7 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Remove PDF Pages" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Remove PDF Pages" description={description} faq={faq} />
   </Fragment>
 
   <header>

@@ -8,17 +8,7 @@ import '../styles/global.css';
 const title = 'Split PDF Online Free - Extract Pages from PDF | PDkef';
 const description = 'Split a PDF file online for free. Extract specific pages or separate into multiple documents in your browser. No upload, no signup, no watermark.';
 
-// Structured data mirrors the visible HowTo + FAQ rendered below.
-const howTo = {
-  name: 'How to split PDF files online for free',
-  steps: [
-    { name: 'Upload your PDF', text: 'Select the PDF file you want to split or drag-and-drop it into the tool.' },
-    { name: 'Choose split mode', text: 'Select to either extract your pages into a single combined PDF or split each page into a separate PDF.' },
-    { name: 'Select pages', text: 'Click on the page thumbnails or type page numbers and ranges (e.g., 1-3, 5, 8-).' },
-    { name: 'Split and download', text: 'Click the Split PDF button and download your generated files instantly.' },
-  ],
-};
-
+// FAQ schema mirrors the visible FAQ rendered below.
 const faq = [
   { question: 'Is the PDF split tool completely free to use?', answer: 'Yes. Like all tools on PDkef, the Split PDF tool is completely free with no limits, no signup required, and no watermarks added.' },
   { question: 'Are my PDF files uploaded to a server?', answer: 'No. PDkef runs 100% on your device (client-side). Your files are processed locally in your browser and are never uploaded to any server, guaranteeing total privacy.' },
@@ -30,7 +20,7 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Split PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Split PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>

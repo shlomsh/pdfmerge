@@ -8,18 +8,7 @@ import '../styles/global.css';
 const title = 'Sign PDF Online Free - Fill & Sign PDF Forms | PDkef';
 const description = 'Sign PDF files online for free. Add signatures, fill forms, write text, and check boxes in your browser securely. Your files never leave your device.';
 
-// Structured data mirrors the visible HowTo + FAQ rendered below.
-const howTo = {
-  name: 'How to fill and sign PDF files online for free',
-  steps: [
-    { name: 'Upload your form', text: 'Select or drag-and-drop the PDF document you want to fill and sign.' },
-    { name: 'Add text & signatures', text: 'Click to place text blocks, checkmarks, or signatures on the pages.' },
-    { name: 'Sign with ease', text: 'Draw your signature on screen, type it out using a cursive font, or upload a signature image.' },
-    { name: 'Position & resize', text: 'Drag items to place them exactly where they belong in the agreement.' },
-    { name: 'Save & download', text: 'Click Sign and Download PDF to generate and save your completed document.' }
-  ]
-};
-
+// FAQ schema mirrors the visible FAQ rendered below.
 const faq = [
   {
     question: 'Do I need to create an account to sign a PDF?',
@@ -42,12 +31,12 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Sign PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Sign PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>
     <h1>Sign & Fill PDF online, free</h1>
-    <p>Fill out forms, place checkmarks, and sign school agreements or other documents safely and privately.</p>
+    <p>Fill out forms, place checkmarks, and sign school agreements or other documents safely and privately - no account, no signup, ever.</p>
   </header>
 
   <main>

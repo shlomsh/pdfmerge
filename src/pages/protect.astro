@@ -9,15 +9,6 @@ const title = 'Protect PDF Online Free - Add PDF Password | PDkef';
 const description =
   'Add a password to a PDF file online for free. Protect your PDF document so only those with the password can open it. 100% private, runs in your browser.';
 
-const howTo = {
-  name: 'How to password-protect a PDF online for free',
-  steps: [
-    { name: 'Upload your PDF', text: 'Select or drag-and-drop the PDF file you want to protect.' },
-    { name: 'Set a password', text: 'Type the password you want to require to open the PDF.' },
-    { name: 'Protect and download', text: 'Click Protect PDF and download a copy with the password added.' },
-  ],
-};
-
 const faq = [
   { question: 'Is protecting a PDF here secure?', answer: 'Yes. The password and the file are processed 100% client-side, entirely in your browser. Nothing is uploaded to any server.' },
   { question: 'What happens if I forget the password?', answer: 'You will not be able to open the PDF without it. Keep a backup of the original PDF or safely store the password.' },
@@ -28,7 +19,7 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - Protect PDF" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - Protect PDF" description={description} faq={faq} />
   </Fragment>
 
   <header>

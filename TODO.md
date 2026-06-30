@@ -21,9 +21,10 @@ leaves a noindexed page or a tool that 404s its own logic:
    reset state to `idle` (and revoke the object URL) on any file mutation.
    Mirror `PdfMergeTool.jsx`.
 3. **On-page content + schema** — add a visible "How it works" + FAQ section to
-   the `.astro` page, and a matching `<SeoSchema name=… description=… howTo=…
-   faq=… />`. Structured data MUST mirror the visible text (Google penalises
-   mismatches). See `merge.astro` for the pattern.
+   the `.astro` page, and a matching `<SeoSchema name=… description=… faq=… />`
+   (FAQ schema only — HowTo schema was removed; Google deprecated HowTo rich
+   results in 2023). Structured data MUST mirror the visible text (Google
+   penalises mismatches). See `merge.astro` for the pattern.
 4. **De-noindex** — remove the `noindex` prop from the page's `<BaseLayout>`.
 5. **Sitemap** — add the route to `public/sitemap.xml`.
 6. **Verify** — `npm run build && npm run preview` (NOT just `npm run dev` — the

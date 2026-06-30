@@ -21,9 +21,9 @@ Per-tool status — **see [TODO.md](./TODO.md) for the actionable, picked-up-by-
 | Unlock | `/unlock` | `PdfSecurityTool.jsx` | ✅ implemented (`src/lib/unlock.js`, password removal via `@cantoo/pdf-lib`) | ✅ in sitemap |
 | Protect | `/protect` | `PdfSecurityTool.jsx` | ✅ implemented (`src/lib/protect.js`, password addition via `@cantoo/pdf-lib`) | ✅ in sitemap |
 
-All Phase 1 tools are now functional and promoted (de-noindexed, in `public/sitemap.xml`, with HowTo/FAQ + `<SeoSchema>` on their pages). Unlock was added beyond the original Phase 1 scope per SEO research identifying it as a high client-side-fit, lower-competition keyword that reinforces the privacy-first positioning. Remaining open items (PWA icons, og-image, header wordmark) are tracked in [TODO.md](./TODO.md).
+All Phase 1 tools are now functional and promoted (de-noindexed, in `public/sitemap.xml`, with a visible "How it works" + FAQ section and a matching `<SeoSchema>` on their pages). Unlock was added beyond the original Phase 1 scope per SEO research identifying it as a high client-side-fit, lower-competition keyword that reinforces the privacy-first positioning. Remaining open items (PWA icons, header wordmark) are tracked in [TODO.md](./TODO.md).
 
-**Definition of done for promoting any tool (do these as one unit — see TODO.md):** (1) implement the real `src/lib/` logic, no network calls; (2) replace the `setTimeout` mock in the component with the real call + download, mirroring `PdfMergeTool.jsx`; (3) add a visible HowTo/FAQ section to the `.astro` page and a matching `<SeoSchema>` (structured data must match on-page content); (4) remove `noindex` from the page; (5) add the route to `public/sitemap.xml`; (6) `npm run build && npm run preview` to confirm CSP/hydration (the dev server cannot catch CSP regressions — see the CSP section).
+**Definition of done for promoting any tool (do these as one unit — see TODO.md):** (1) implement the real `src/lib/` logic, no network calls; (2) replace the `setTimeout` mock in the component with the real call + download, mirroring `PdfMergeTool.jsx`; (3) add a visible "How it works" + FAQ section to the `.astro` page and a matching `<SeoSchema>` (FAQ schema only — HowTo schema was removed, deprecated by Google in 2023; structured data must match on-page content); (4) remove `noindex` from the page; (5) add the route to `public/sitemap.xml`; (6) `npm run build && npm run preview` to confirm CSP/hydration (the dev server cannot catch CSP regressions — see the CSP section).
 
 ## Commands
 
@@ -60,7 +60,7 @@ Drag-to-reorder uses **SortableJS**, wired directly to the DOM list in `PdfMerge
 - All marketing/how-to/FAQ content stays in `.astro` files (build-time rendered), never moved into the Preact island.
 - `robots.txt` and `sitemap.xml` in `public/` must stay reachable and accurate; `astro.config.mjs`'s `site` must match the real deployed domain (currently a placeholder — update before launch).
 - Canonical URL, Open Graph + Twitter Card tags (`BaseLayout.astro`) must stay present.
-- JSON-LD (`SeoSchema.astro`: `SoftwareApplication`, `HowTo`, `FAQPage`) must stay valid — verify with Google's Rich Results Test after edits.
+- JSON-LD (`SeoSchema.astro`: `SoftwareApplication` with `Person` author, `FAQPage`) must stay valid — verify with Google's Rich Results Test after edits. `HowTo` schema was intentionally removed (Google deprecated HowTo rich results in 2023); don't re-add it.
 - Target Lighthouse SEO + Performance ≥ 95 — keep the island lean, lazy-load thumbnails, avoid layout shift.
 
 ## UI & State Invariants

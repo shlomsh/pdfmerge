@@ -5,18 +5,10 @@ import PdfToImageTool from '../components/PdfToImageTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
-const title = 'Convert PDF to Image Online Free - PDF to JPG/PNG | PDkef';
-const description = 'Convert PDF pages to high-quality JPG or PNG images online for free. Secure, fast, and 100% private in-browser conversion.';
+const title = 'Convert PDF to Image Online Free - No Watermark | PDkef';
+const description = 'Convert PDF pages to high-quality JPG or PNG images online for free, with no watermark. Secure, fast, and 100% private in-browser conversion.';
 
-// Structured data mirrors the visible HowTo + FAQ rendered below.
-const howTo = {
-  name: 'How to convert PDF to JPG or PNG online for free',
-  steps: [
-    { name: 'Add your PDF', text: 'Select or drag-and-drop the PDF file you want to convert.' },
-    { name: 'Choose format and quality', text: 'Pick PNG or JPG, and a quality level from Standard to Maximum.' },
-    { name: 'Convert and download', text: 'Click Convert and download your image - one file per page.' },
-  ],
-};
+// FAQ schema mirrors the visible FAQ rendered below.
 const faq = [
   { question: 'Is PDkef really free?', answer: 'Yes. PDkef is completely free, with no limits, no signup, and no watermark on your converted images.' },
   { question: 'Does PDkef add a watermark to converted images?', answer: 'No. Unlike many free online converters, JPG and PNG exports here have zero watermarks and no forced resolution downgrade on the free tier - because the conversion runs on your device, there is no server cost to recoup by limiting the free tier.' },
@@ -28,12 +20,12 @@ const faq = [
 
 <BaseLayout title={title} description={description}>
   <Fragment slot="head">
-    <SeoSchema name="PDkef - PDF to Image" description={description} howTo={howTo} faq={faq} />
+    <SeoSchema name="PDkef - PDF to Image" description={description} faq={faq} />
   </Fragment>
 
   <header>
     <h1>Convert PDF to Image</h1>
-    <p>Turn your PDF pages into high-quality JPG or PNG images. Processing is done securely on your device.</p>
+    <p>Turn your PDF pages into high-quality JPG or PNG images - no watermark, ever. Scanned IDs, contracts, and medical records are converted entirely on your device, so nothing is ever transmitted to a third-party server.</p>
   </header>
 
   <main>
