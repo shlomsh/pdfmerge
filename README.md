@@ -2,7 +2,7 @@
 
 I needed to merge, split, and compress a few PDFs one day and went looking for a tool to do it. Every result was the same story: upload your files to some server, wait, hope they get deleted, dodge three "download" buttons that were actually ads, and maybe hit a paywall on the third edit. For files that are often private — contracts, tax forms, ID scans — that's a bad trade. So I built the tool suite I actually wanted: one that edits PDFs entirely on your device and never sends a single byte anywhere.
 
-That's the whole premise of PDkef. No server, no uploads, no accounts, no limits, no watermark, no catch. It started as just a merger, but is now evolving into a full suite of client-side PDF tools (Merge, Split, Remove Pages, Compress, PDF to Image).
+That's the whole premise of PDkef. No server, no uploads, no accounts, no limits, no watermark, no catch. It started as just a merger, but is now evolving into a full suite of client-side PDF tools (Merge, Split, Remove Pages, Compress, PDF to Image, Sign, Unlock).
 
 ## Why it's built this way
 

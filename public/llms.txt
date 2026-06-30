@@ -2,7 +2,7 @@
 
 > 100% client-side, privacy-first PDF tools online. No file uploads, no server, completely free.
 
-PDkef is a static web application offering a suite of PDF tools (merge, split, remove pages, compress, PDF to image) that run directly in the user's browser. Because all processing happens locally using WebAssembly/JavaScript, PDF files never leave the user's device.
+PDkef is a static web application offering a suite of PDF tools (merge, split, remove pages, compress, PDF to image, sign & fill, unlock) that run directly in the user's browser. Because all processing happens locally using WebAssembly/JavaScript, PDF files never leave the user's device.
 
 ## Key Features
 - **Zero Uploads**: All processing is performed client-side using `@cantoo/pdf-lib`. Files are never sent to a server.

@@ -34,10 +34,21 @@ export default function PdfSignTool() {
   const [dialogOpen, setDialogOpen] = useState(false);
   
   // Signature Dialog state
-  const [signatureMode, setSignatureMode] = useState('draw'); // 'draw' | 'type'
+  const [signatureMode, setSignatureMode] = useState('draw'); // 'draw' | 'type' | 'upload'
   const [typedName, setTypedName] = useState('');
   const [hasDrawn, setHasDrawn] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+
+  // Saved signatures and active signature state
+  const [savedSignatures, setSavedSignatures] = useState([]);
+  const [activeSignature, setActiveSignature] = useState(null);
+  const [showSigDropdown, setShowSigDropdown] = useState(false);
+
+  // Upload signature state
+  const [uploadImage, setUploadImage] = useState(null);
+  const [processedUploadImage, setProcessedUploadImage] = useState(null);
+  const [uploadAspectRatio, setUploadAspectRatio] = useState(1);
+  const [removeBg, setRemoveBg] = useState(true);
 
   // Refs
   const pageWrapperRefs = useRef([]);
@@ -63,6 +74,157 @@ export default function PdfSignTool() {
       }
     };
   }, [downloadUrl]);
+
+  // Load saved signatures from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pdf-toolkit:signatures');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setSavedSignatures(parsed);
+        if (parsed.length > 0) {
+          setActiveSignature(parsed[0]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved signatures from localStorage:', e);
+    }
+  }, []);
+
+  // Save new signature to list & localStorage
+  const saveNewSignature = (dataUrl, aspectRatio) => {
+    const newSig = {
+      id: `sig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      dataUrl,
+      aspectRatio
+    };
+    const updated = [newSig, ...savedSignatures].slice(0, 10);
+    setSavedSignatures(updated);
+    try {
+      localStorage.setItem('pdf-toolkit:signatures', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to persist signatures to localStorage:', e);
+    }
+    return newSig;
+  };
+
+  // Delete saved signature
+  const deleteSavedSignature = (id, e) => {
+    if (e) e.stopPropagation();
+    const updated = savedSignatures.filter((sig) => sig.id !== id);
+    setSavedSignatures(updated);
+    try {
+      localStorage.setItem('pdf-toolkit:signatures', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to persist signatures to localStorage:', e);
+    }
+    if (activeSignature && activeSignature.id === id) {
+      const fallback = updated.length > 0 ? updated[0] : null;
+      setActiveSignature(fallback);
+      if (!fallback && selectedTool === 'signature') {
+        setSelectedTool(null);
+      }
+    }
+  };
+
+  // Handle outside clicks to close the signature dropdown
+  useEffect(() => {
+    if (!showSigDropdown) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.sign-tool-dropdown-container')) {
+        setShowSigDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [showSigDropdown]);
+
+  // Click handler for Signature button
+  const handleSignatureBtnClick = () => {
+    if (savedSignatures.length > 0) {
+      setShowSigDropdown(!showSigDropdown);
+    } else {
+      setDialogOpen(true);
+    }
+  };
+
+  // Select a saved signature
+  const handleSelectSavedSignature = (sig) => {
+    setActiveSignature(sig);
+    setSelectedTool('signature');
+    setShowSigDropdown(false);
+    setAnnouncement('Signature tool active. Click anywhere on a page to place.');
+  };
+
+  // Handle image upload input & drag/drop
+  const handleUploadFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadImage(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadChange = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleUploadFile(files[0]);
+    }
+  };
+
+  const handleUploadDrop = (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleUploadFile(files[0]);
+    }
+  };
+
+  const clearUpload = () => {
+    setUploadImage(null);
+    setProcessedUploadImage(null);
+  };
+
+  // Helper to remove solid white or light backgrounds
+  const removeWhiteBackground = (ctx, width, height) => {
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (r > 215 && g > 215 && b > 215) {
+        data[i + 3] = 0; // Set alpha to transparent
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  };
+
+  // Process uploaded image (trim whitespace and remove background if enabled)
+  useEffect(() => {
+    if (!uploadImage) {
+      setProcessedUploadImage(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      if (removeBg) {
+        removeWhiteBackground(ctx, canvas.width, canvas.height);
+      }
+
+      const { dataUrl, aspectRatio } = trimCanvas(canvas);
+      setProcessedUploadImage(dataUrl);
+      setUploadAspectRatio(aspectRatio);
+    };
+    img.src = uploadImage;
+  }, [uploadImage, removeBg]);
 
   // Handle native <dialog> open/close and Safari light-dismiss fallback
   useEffect(() => {
@@ -236,9 +398,13 @@ export default function PdfSignTool() {
       setActiveElementId(id);
       setAnnouncement('Added checkmark.');
     } else if (selectedTool === 'signature') {
-      // Save click location temporarily to place signature once generated
-      setTempPlacement({ pageIndex, left: leftPercent, top: topPercent });
-      setDialogOpen(true);
+      if (activeSignature) {
+        placeSignatureAt(activeSignature.dataUrl, activeSignature.aspectRatio, pageIndex, leftPercent, topPercent);
+      } else {
+        // Save click location temporarily to place signature once generated
+        setTempPlacement({ pageIndex, left: leftPercent, top: topPercent });
+        setDialogOpen(true);
+      }
     }
     
     setSelectedTool(null); // Reset active tool
@@ -246,8 +412,8 @@ export default function PdfSignTool() {
 
   const [tempPlacement, setTempPlacement] = useState(null);
 
-  // Add signature element from modal
-  const handleAddSignatureElement = (dataUrl, aspectRatio) => {
+  // Helper to place a signature at a specific location
+  const placeSignatureAt = (dataUrl, aspectRatio, pageIdx, leftPercent, topPercent) => {
     const id = uniqueId();
     // Default size: width = 20% of page
     const widthPercent = 20;
@@ -255,9 +421,6 @@ export default function PdfSignTool() {
     // Calculate page wrapper dimension
     let pageWrapperHeight = 800;
     let pageWrapperWidth = 600;
-    
-    const placement = tempPlacement || { pageIndex: 0, left: 40, top: 40 };
-    const pageIdx = placement.pageIndex;
     
     const wrapper = pageWrapperRefs.current[pageIdx];
     if (wrapper) {
@@ -272,8 +435,8 @@ export default function PdfSignTool() {
       id,
       type: 'signature',
       pageIndex: pageIdx,
-      left: placement.left - (widthPercent / 2),
-      top: placement.top - (heightPercent / 2),
+      left: leftPercent - (widthPercent / 2),
+      top: topPercent - (heightPercent / 2),
       width: widthPercent,
       height: heightPercent,
       aspectRatio,
@@ -282,9 +445,15 @@ export default function PdfSignTool() {
     
     setElements((prev) => [...prev, newEl]);
     setActiveElementId(id);
+    setAnnouncement('Placed signature on page.');
+  };
+
+  // Add signature element from modal
+  const handleAddSignatureElement = (dataUrl, aspectRatio) => {
+    const placement = tempPlacement || { pageIndex: 0, left: 40, top: 40 };
+    placeSignatureAt(dataUrl, aspectRatio, placement.pageIndex, placement.left, placement.top);
     setDialogOpen(false);
     setTempPlacement(null);
-    setAnnouncement('Placed signature on page.');
   };
 
   // Drawing Pad Canvas coordinates helper
@@ -419,6 +588,9 @@ export default function PdfSignTool() {
 
   // Save Signature Button Click
   const handleSaveSignature = () => {
+    let finalDataUrl = null;
+    let finalAspectRatio = 1;
+
     if (signatureMode === 'draw') {
       const canvas = canvasPadRef.current;
       if (!canvas) return;
@@ -431,8 +603,9 @@ export default function PdfSignTool() {
       tempCtx.drawImage(canvas, 0, 0);
       
       const { dataUrl, aspectRatio } = trimCanvas(tempCanvas);
-      handleAddSignatureElement(dataUrl, aspectRatio);
-    } else {
+      finalDataUrl = dataUrl;
+      finalAspectRatio = aspectRatio;
+    } else if (signatureMode === 'type') {
       // Type signature mode
       if (!typedName.trim()) return;
       const canvas = document.createElement('canvas');
@@ -448,7 +621,24 @@ export default function PdfSignTool() {
       ctx.fillText(typedName, canvas.width / 2, canvas.height / 2);
       
       const { dataUrl, aspectRatio } = trimCanvas(canvas);
-      handleAddSignatureElement(dataUrl, aspectRatio);
+      finalDataUrl = dataUrl;
+      finalAspectRatio = aspectRatio;
+    } else if (signatureMode === 'upload') {
+      if (!processedUploadImage) return;
+      finalDataUrl = processedUploadImage;
+      finalAspectRatio = uploadAspectRatio;
+    }
+
+    if (finalDataUrl) {
+      const newSig = saveNewSignature(finalDataUrl, finalAspectRatio);
+      setActiveSignature(newSig);
+      setSelectedTool('signature');
+      handleAddSignatureElement(finalDataUrl, finalAspectRatio);
+      
+      // Reset signature creation dialog states
+      clearDrawing();
+      setTypedName('');
+      clearUpload();
     }
   };
 
@@ -504,8 +694,12 @@ export default function PdfSignTool() {
       setActiveElementId(id);
       setAnnouncement('Added checkmark.');
     } else if (type === 'signature') {
-      setTempPlacement({ pageIndex, left: 50, top: 50 });
-      setDialogOpen(true);
+      if (activeSignature) {
+        placeSignatureAt(activeSignature.dataUrl, activeSignature.aspectRatio, pageIndex, 50, 50);
+      } else {
+        setTempPlacement({ pageIndex, left: 50, top: 50 });
+        setDialogOpen(true);
+      }
     }
   };
 
@@ -665,21 +859,65 @@ export default function PdfSignTool() {
                     Check
                   </button>
 
-                  <button
-                    type="button"
-                    className={`sign-tool-btn${selectedTool === 'signature' ? ' active' : ''}`}
-                    onClick={() => {
-                      setSelectedTool(selectedTool === 'signature' ? null : 'signature');
-                      setAnnouncement('Signature tool active. Click a page to sign.');
-                    }}
-                    title="Click here, then click a page to place a signature"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                    </svg>
-                    Signature
-                  </button>
+                  <div className="sign-tool-dropdown-container">
+                    <button
+                      type="button"
+                      className={`sign-tool-btn${selectedTool === 'signature' ? ' active' : ''}`}
+                      onClick={handleSignatureBtnClick}
+                      title="Click here to select or create a signature"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                      Signature
+                    </button>
+
+                    {showSigDropdown && (
+                      <>
+                        <div className="sign-dropdown-backdrop" onClick={() => setShowSigDropdown(false)} />
+                        <div className="sign-dropdown-menu" role="menu">
+                          <div className="sign-dropdown-list">
+                            {savedSignatures.map((sig) => (
+                              <div
+                                key={sig.id}
+                                className="sign-dropdown-item"
+                                role="menuitem"
+                                onClick={() => handleSelectSavedSignature(sig)}
+                              >
+                                <img src={sig.dataUrl} alt="Saved signature" />
+                                <button
+                                  type="button"
+                                  className="sign-dropdown-item-delete"
+                                  onClick={(e) => deleteSavedSignature(sig.id, e)}
+                                  title="Delete signature"
+                                  aria-label="Delete signature"
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                    <path d="M4 4l8 8M12 4l-8 8" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            className="sign-dropdown-add-btn"
+                            onClick={() => {
+                              setShowSigDropdown(false);
+                              setDialogOpen(true);
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            New Signature
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   <div className="sign-tool-separator" />
 
@@ -874,16 +1112,27 @@ export default function PdfSignTool() {
             >
               Type
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={signatureMode === 'upload'}
+              className={`sig-tab-btn${signatureMode === 'upload' ? ' active' : ''}`}
+              onClick={() => setSignatureMode('upload')}
+            >
+              Upload
+            </button>
           </div>
 
-          {signatureMode === 'draw' ? (
+          {signatureMode === 'draw' && (
             <div className="sig-pad-wrapper" onMouseDown={startDrawing} onTouchStart={startDrawing}>
               <canvas ref={canvasPadRef} className="sig-canvas" />
               <button type="button" className="sig-clear-btn" onClick={clearDrawing}>
                 Clear
               </button>
             </div>
-          ) : (
+          )}
+
+          {signatureMode === 'type' && (
             <div className="sig-type-container">
               <input
                 type="text"
@@ -898,6 +1147,53 @@ export default function PdfSignTool() {
               </div>
             </div>
           )}
+
+          {signatureMode === 'upload' && (
+            <div className="sig-upload-container">
+              {!uploadImage ? (
+                <label className="sig-upload-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleUploadDrop}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <p>Drag & drop signature image here or click to choose</p>
+                  <span>Supports PNG, JPG, SVG. Auto background transparency.</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleUploadChange}
+                  />
+                </label>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="sig-upload-preview">
+                    {processedUploadImage ? (
+                      <img src={processedUploadImage} alt="Uploaded signature preview" />
+                    ) : (
+                      <p style={{ color: 'var(--color-muted)', fontSize: '0.88rem' }}>Processing signature...</p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="sig-upload-options">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={removeBg}
+                          onChange={(e) => setRemoveBg(e.target.checked)}
+                        />
+                        Remove white background
+                      </label>
+                    </div>
+                    <button type="button" className="sig-clear-btn" style={{ position: 'static' }} onClick={clearUpload}>
+                      Change Image
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="sig-dialog-footer">
@@ -908,7 +1204,11 @@ export default function PdfSignTool() {
             type="button"
             className="sig-btn sig-btn-primary"
             onClick={handleSaveSignature}
-            disabled={signatureMode === 'draw' ? !hasDrawn : !typedName.trim()}
+            disabled={
+              signatureMode === 'draw' ? !hasDrawn :
+              signatureMode === 'type' ? !typedName.trim() :
+              !processedUploadImage
+            }
           >
             Save Signature
           </button>

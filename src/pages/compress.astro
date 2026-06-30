@@ -1,14 +1,36 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import SeoSchema from '../components/SeoSchema.astro';
 import PdfCompressTool from '../components/PdfCompressTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 const title = 'Compress PDF Online Free - Reduce PDF File Size';
-const description = 'Compress PDF files online for free. Reduce the file size of your documents without losing quality. 100% private, runs in your browser.';
+const description =
+  'Compress PDF files online for free. Reduce the file size of your documents without losing quality. 100% private, runs in your browser.';
+
+const howTo = {
+  name: 'How to compress PDF files online for free',
+  steps: [
+    { name: 'Upload your PDF', text: 'Select or drag-and-drop the PDF file you want to compress.' },
+    { name: 'Choose compression level', text: 'Select Extreme, Recommended, or High Quality compression option based on your needs.' },
+    { name: 'Compress and download', text: 'Click Compress PDF, view your size savings, and download the optimized PDF.' },
+  ],
+};
+
+const faq = [
+  { question: 'Is the PDF compression secure?', answer: 'Yes. The compression is 100% client-side and runs entirely in your browser. Your files are never uploaded to any server, keeping your data private.' },
+  { question: 'What is the difference between the compression levels?', answer: 'Extreme compression reduces file size by 60-80% using 72 DPI images. Recommended compression reduces size by 40-60% at 110 DPI. High Quality compression reduces size by 10-30% at 150 DPI.' },
+  { question: 'Does compressing a PDF affect text search or copying?', answer: 'Yes. To compress the document client-side safely, pages are rasterized into images. This means text selection, copy-pasting, and embedded links will be disabled in the output file.' },
+  { question: 'Is there a limit on the file size I can compress?', answer: "There is no artificial file size limit. The compression runs entirely on your device, so the only limitation is your device's system memory (RAM)." },
+];
 ---
 
-<BaseLayout title={title} description={description} noindex>
+<BaseLayout title={title} description={description}>
+  <Fragment slot="head">
+    <SeoSchema name="PDkef - Compress PDF" description={description} howTo={howTo} faq={faq} />
+  </Fragment>
+
   <header>
     <h1>Compress PDF online, free</h1>
     <p>Reduce the size of your PDF files instantly. Secure, client-side compression.</p>
@@ -19,5 +41,37 @@ const description = 'Compress PDF files online for free. Reduce the file size of
       <PdfCompressTool client:load />
     </section>
   </main>
-  <Footer />
+  
+  <Footer summaryText="Reduce the file size of your PDFs, right in your browser. No upload, no server. Your files never leave your device.">
+    <section id="how-it-works">
+      <h2>How to compress PDF files online for free</h2>
+      <ol>
+        <li><strong>Upload your PDF.</strong> Select or drag-and-drop the file you want to compress.</li>
+        <li><strong>Choose compression level.</strong> Select Extreme, Recommended, or High Quality compression depending on your size and resolution needs.</li>
+        <li><strong>Compress and download.</strong> Click Compress PDF, review the file size savings, and save your compressed document.</li>
+      </ol>
+    </section>
+
+    <section id="why-pdkef">
+      <h2>Why use PDkef</h2>
+      <ul>
+        <li><strong>Free:</strong> no cost, no signup, no watermark, no limits.</li>
+        <li><strong>Private:</strong> your files never leave your device; nothing is uploaded.</li>
+        <li><strong>Fast:</strong> compression happens instantly in your browser.</li>
+        <li><strong>Works everywhere:</strong> Chrome on macOS, Windows, Android, and iOS.</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <h3>Is the PDF compression secure?</h3>
+      <p>Yes. The compression is 100% client-side and runs entirely in your browser. Your files are never uploaded to any server, keeping your data private.</p>
+      <h3>What is the difference between the compression levels?</h3>
+      <p>Extreme compression reduces file size by 60-80% using 72 DPI images. Recommended compression reduces size by 40-60% at 110 DPI. High Quality compression reduces size by 10-30% at 150 DPI.</p>
+      <h3>Does compressing a PDF affect text search or copying?</h3>
+      <p>Yes. To compress the document client-side safely, pages are rasterized into images. This means text selection, copy-pasting, and embedded links will be disabled in the output file.</p>
+      <h3>Is there a limit on the file size I can compress?</h3>
+      <p>There is no artificial file size limit. The compression runs entirely on your device, so the only limitation is your device's system memory (RAM).</p>
+    </section>
+  </Footer>
 </BaseLayout>

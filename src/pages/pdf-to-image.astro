@@ -1,17 +1,38 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import SeoSchema from '../components/SeoSchema.astro';
 import PdfToImageTool from '../components/PdfToImageTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 const title = 'Convert PDF to Image Online Free - PDF to JPG/PNG';
 const description = 'Convert PDF pages to high-quality JPG or PNG images online for free. Secure, fast, and 100% private in-browser conversion.';
+
+// Structured data mirrors the visible HowTo + FAQ rendered below.
+const howTo = {
+  name: 'How to convert PDF to JPG or PNG online for free',
+  steps: [
+    { name: 'Add your PDF', text: 'Select or drag-and-drop the PDF file you want to convert.' },
+    { name: 'Choose format and quality', text: 'Pick PNG or JPG, and a quality level from Standard to Maximum.' },
+    { name: 'Convert and download', text: 'Click Convert and download your image - one file per page.' },
+  ],
+};
+const faq = [
+  { question: 'Is PDkef really free?', answer: 'Yes. PDkef is completely free, with no limits, no signup, and no watermark on your converted images.' },
+  { question: 'Are my files uploaded to a server?', answer: 'No. PDkef runs entirely in your browser. Your PDF files are never sent over the network - they stay on your device the entire time.' },
+  { question: 'What is the difference between PNG and JPG?', answer: 'PNG keeps a transparent background and is lossless, which is best for text-heavy or graphic pages. JPG uses a white background and smaller file sizes, which works well for photos and scans.' },
+  { question: 'What happens with a multi-page PDF?', answer: 'By default each page is converted to its own image file, downloadable individually or all at once. You can also choose "Single combined image" to stack every page into one tall image instead.' },
+];
 ---
 
-<BaseLayout title={title} description={description} noindex>
+<BaseLayout title={title} description={description}>
+  <Fragment slot="head">
+    <SeoSchema name="PDkef - PDF to Image" description={description} howTo={howTo} faq={faq} />
+  </Fragment>
+
   <header>
     <h1>Convert PDF to Image</h1>
-    <p>Turn your PDF pages into high-quality images. Processing is done securely on your device.</p>
+    <p>Turn your PDF pages into high-quality JPG or PNG images. Processing is done securely on your device.</p>
   </header>
 
   <main>
@@ -19,5 +40,38 @@ const description = 'Convert PDF pages to high-quality JPG or PNG images online 
       <PdfToImageTool client:load />
     </section>
   </main>
-  <Footer />
+
+  <Footer summaryText="Convert PDF pages to images, right in your browser. No upload, no server. Your files never leave your device.">
+    <section id="how-it-works">
+      <h2>How to convert PDF to JPG or PNG online for free</h2>
+      <ol>
+        <li><strong>Add your PDF.</strong> Select or drag-and-drop the file you want to convert.</li>
+        <li><strong>Choose format and quality.</strong> Pick PNG or JPG, and a quality level from Standard to Maximum.</li>
+        <li><strong>Convert and download.</strong> Click Convert and download your image - one file per page.</li>
+      </ol>
+    </section>
+
+    <section id="why-pdkef">
+      <h2>Why use PDkef</h2>
+      <ul>
+        <li><strong>Free:</strong> no cost, no signup, no watermark, no limits.</li>
+        <li><strong>Private:</strong> your files never leave your device; nothing is uploaded.</li>
+        <li><strong>Fast:</strong> conversion happens instantly in your browser.</li>
+        <li><strong>Works everywhere:</strong> Chrome on macOS, Windows, Android, and iOS.</li>
+        <li><strong>Open source:</strong> MIT licensed, inspect the code yourself.</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <h3>Is PDkef really free?</h3>
+      <p>Yes. PDkef is completely free, with no limits, no signup, and no watermark on your converted images.</p>
+      <h3>Are my files uploaded to a server?</h3>
+      <p>No. PDkef runs entirely in your browser. Your PDF files are never sent over the network - they stay on your device the entire time.</p>
+      <h3>What is the difference between PNG and JPG?</h3>
+      <p>PNG keeps a transparent background and is lossless, which is best for text-heavy or graphic pages. JPG uses a white background and smaller file sizes, which works well for photos and scans.</p>
+      <h3>What happens with a multi-page PDF?</h3>
+      <p>Each page is converted to its own image file. You can download them individually or use "Download all" to save every page in sequence.</p>
+    </section>
+  </Footer>
 </BaseLayout>

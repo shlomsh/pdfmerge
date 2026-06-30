@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A 100% client-side, no-backend static web app that provides a suite of PDF tools (Merge, Split, Remove Pages, Compress, PDF to Image) in the browser, optimized to rank for specific PDF manipulation SEO keywords. There is no server component and never should be — files must never leave the user's device. This is the central product constraint; do not introduce any upload/API call that sends file contents off-device. Every runtime dependency is MIT or Apache-2.0 licensed (no AGPL/commercial libraries) and makes zero network calls of its own.
+A 100% client-side, no-backend static web app that provides a suite of PDF tools (Merge, Split, Remove Pages, Compress, PDF to Image, Sign, Unlock) in the browser, optimized to rank for specific PDF manipulation SEO keywords. There is no server component and never should be — files must never leave the user's device. This is the central product constraint; do not introduce any upload/API call that sends file contents off-device. Every runtime dependency is MIT or Apache-2.0 licensed (no AGPL/commercial libraries) and makes zero network calls of its own.
 
 ### Implementation status (Phase 1)
 
@@ -13,13 +13,14 @@ Per-tool status — **see [TODO.md](./TODO.md) for the actionable, picked-up-by-
 | Tool | Route | Component | Functional? | Indexed? |
 | --- | --- | --- | --- | --- |
 | Merge | `/merge` | `PdfMergeTool.jsx` | ✅ yes (reference impl) | ✅ in sitemap |
-| Sign | `/sign` | `PdfSignTool.jsx` | ✅ implemented (real `pdfDoc.save()` + download), **needs verification** | ❌ `noindex`, not in sitemap |
-| Split | `/split` | `PdfSplitTool.jsx` | ❌ mock (`setTimeout` → "Done! (Mock Phase 1)") | ❌ `noindex` |
-| Remove Pages | `/remove-pages` | `PdfRemovePagesTool.jsx` | ❌ mock | ❌ `noindex` |
-| Compress | `/compress` | `PdfCompressTool.jsx` | ❌ mock | ❌ `noindex` |
-| PDF to Image | `/pdf-to-image` | `PdfToImageTool.jsx` | ❌ mock | ❌ `noindex` |
+| Sign | `/sign` | `PdfSignTool.jsx` | ✅ implemented (real `pdfDoc.save()` + download) | ✅ in sitemap |
+| Split | `/split` | `PdfSplitTool.jsx` | ✅ implemented (`src/lib/split.js`) | ✅ in sitemap |
+| Remove Pages | `/remove-pages` | `PdfRemovePagesTool.jsx` | ✅ implemented (`src/lib/removePages.js`) | ✅ in sitemap |
+| Compress | `/compress` | `PdfCompressTool.jsx` | ✅ implemented (`src/lib/compress.js`, rasterizes + re-encodes pages) | ✅ in sitemap |
+| PDF to Image | `/pdf-to-image` | `PdfToImageTool.jsx` | ✅ implemented (`src/lib/toImage.js` + real downloads) | ✅ in sitemap |
+| Unlock | `/unlock` | `PdfUnlockTool.jsx` | ✅ implemented (`src/lib/unlock.js`, password removal via `@cantoo/pdf-lib`) | ✅ in sitemap |
 
-The four mock tools accept a file, run a `setTimeout` delay, and show "Done! (Mock Phase 1)" without processing anything — there is no `src/lib/split.js` / `removePages.js` / `compress.js` / `toImage.js` yet. Their `.astro` pages already carry production SEO copy and JSON-LD-worthy claims ("No upload, no signup, no watermark") written ahead of the functionality, which is why they are `noindex`'d (via the `noindex` prop on `BaseLayout.astro`) and kept out of `sitemap.xml`: indexing them now would rank pages whose tools silently do nothing.
+All Phase 1 tools are now functional and promoted (de-noindexed, in `public/sitemap.xml`, with HowTo/FAQ + `<SeoSchema>` on their pages). Unlock was added beyond the original Phase 1 scope per SEO research identifying it as a high client-side-fit, lower-competition keyword that reinforces the privacy-first positioning. Remaining open items (PWA icons, og-image, header wordmark) are tracked in [TODO.md](./TODO.md).
 
 **Definition of done for promoting any tool (do these as one unit — see TODO.md):** (1) implement the real `src/lib/` logic, no network calls; (2) replace the `setTimeout` mock in the component with the real call + download, mirroring `PdfMergeTool.jsx`; (3) add a visible HowTo/FAQ section to the `.astro` page and a matching `<SeoSchema>` (structured data must match on-page content); (4) remove `noindex` from the page; (5) add the route to `public/sitemap.xml`; (6) `npm run build && npm run preview` to confirm CSP/hydration (the dev server cannot catch CSP regressions — see the CSP section).
 
@@ -33,6 +34,8 @@ npm run preview   # preview the production build locally
 ```
 
 Deploy: push to `main` → Vercel auto-deploys (GitHub integration), custom domain attached in Vercel dashboard.
+
+**If a tool's file picker opens but selecting files does nothing in `npm run dev`**, and the browser console shows `504 (Outdated Optimize Dep)` for entries under `node_modules/.vite/deps/`, the dev server's Vite dependency cache has gone stale relative to `node_modules` — typically because `npm install` ran while an old `astro dev` process was still running. The dynamic import of the island component then fails (`[astro-island] Error hydrating ... Failed to fetch dynamically imported module`), so its `onChange` handler never attaches — same end-user symptom as the CSP hydration bug below, different cause, and only happens in dev. Fix: stop the dev server, `rm -rf node_modules/.vite`, restart `npm run dev`.
 
 ## Architecture
 

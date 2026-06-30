@@ -1,14 +1,46 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import SeoSchema from '../components/SeoSchema.astro';
 import PdfSignTool from '../components/PdfSignTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 const title = 'Sign PDF Online Free - Fill & Sign PDF Forms';
 const description = 'Sign PDF files online for free. Add signatures, fill forms, write text, and check boxes in your browser securely. Your files never leave your device.';
+
+// Structured data mirrors the visible HowTo + FAQ rendered below.
+const howTo = {
+  name: 'How to fill and sign PDF files online for free',
+  steps: [
+    { name: 'Upload your form', text: 'Select or drag-and-drop the PDF document you want to fill and sign.' },
+    { name: 'Add text & signatures', text: 'Click to place text blocks, checkmarks, or signatures on the pages.' },
+    { name: 'Sign with ease', text: 'Draw your signature on screen, type it out using a cursive font, or upload a signature image.' },
+    { name: 'Position & resize', text: 'Drag items to place them exactly where they belong in the agreement.' },
+    { name: 'Save & download', text: 'Click Sign and Download PDF to generate and save your completed document.' }
+  ]
+};
+
+const faq = [
+  {
+    question: 'Can I sign school trip agreements?',
+    answer: 'Yes. This tool is perfect for child school trip agreements, consent slips, and standard PDF forms. You can type the child\'s name, tick the consent checkboxes, and draw your parent signature.'
+  },
+  {
+    question: 'Is my signature safe here?',
+    answer: 'Absolutely. Unlike standard PDF signing websites that upload your signature and PDF file to their servers, this tool runs entirely on your device. Your signature image is embedded in the PDF in-memory and never leaves your computer or phone.'
+  },
+  {
+    question: 'Can I type my signature instead of drawing?',
+    answer: 'Yes. If you don\'t want to draw with a mouse or touch, you can select the "Type" option. It renders your name in a handwriting font and embeds it as a signature.'
+  }
+];
 ---
 
-<BaseLayout title={title} description={description} noindex>
+<BaseLayout title={title} description={description}>
+  <Fragment slot="head">
+    <SeoSchema name="PDkef - Sign PDF" description={description} howTo={howTo} faq={faq} />
+  </Fragment>
+
   <header>
     <h1>Sign & Fill PDF online, free</h1>
     <p>Fill out forms, place checkmarks, and sign school agreements or other documents safely and privately.</p>
@@ -26,9 +58,9 @@ const description = 'Sign PDF files online for free. Add signatures, fill forms,
       <ol>
         <li><strong>Upload your form.</strong> Select or drag-and-drop the PDF document you want to fill and sign.</li>
         <li><strong>Add text & signatures.</strong> Click to place text blocks, checkmarks, or signatures on the pages.</li>
-        <li><strong>Sign with ease.</strong> Draw your signature on screen, or type it out using a cursive font.</li>
+        <li><strong>Sign with ease.</strong> Draw your signature on screen, type it out using a cursive font, or upload a signature image.</li>
         <li><strong>Position & resize.</strong> Drag items to place them exactly where they belong in the agreement.</li>
-        <li><strong>Save & download.</strong> Click Sign PDF to generate and download your completed document.</li>
+        <li><strong>Save & download.</strong> Click Sign and Download PDF to generate and download your completed document.</li>
       </ol>
     </section>
 

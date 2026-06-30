@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SeoSchema from '../components/SeoSchema.astro';
+import PdfUnlockTool from '../components/PdfUnlockTool.jsx';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+const title = 'Unlock PDF Online Free - Remove PDF Password';
+const description =
+  'Remove a password from a PDF file online for free. Enter the password once and download an unlocked copy. 100% private, runs in your browser.';
+
+const howTo = {
+  name: 'How to unlock a password-protected PDF online for free',
+  steps: [
+    { name: 'Upload your PDF', text: 'Select or drag-and-drop the password-protected PDF file.' },
+    { name: 'Enter the password', text: 'Type the password currently required to open the PDF.' },
+    { name: 'Unlock and download', text: 'Click Unlock PDF and download a copy with the password removed.' },
+  ],
+};
+
+const faq = [
+  { question: 'Is unlocking a PDF here secure?', answer: 'Yes. The password and the file are processed 100% client-side, entirely in your browser. Nothing is uploaded to any server.' },
+  { question: 'Do I need to know the PDF’s password?', answer: 'Yes. This tool removes a password you already know from a PDF - it does not crack, guess, or recover unknown passwords.' },
+  { question: 'What if I enter the wrong password?', answer: 'You’ll see an error and can try again. No file data is sent anywhere when this happens, so there’s no risk in retrying.' },
+  { question: 'Is there a limit on file size?', answer: 'No artificial limit. Unlocking runs entirely on your device, so the only constraint is your device’s available memory.' },
+];
+---
+
+<BaseLayout title={title} description={description}>
+  <Fragment slot="head">
+    <SeoSchema name="PDkef - Unlock PDF" description={description} howTo={howTo} faq={faq} />
+  </Fragment>
+
+  <header>
+    <h1>Unlock PDF online, free</h1>
+    <p>Remove a password from your PDF instantly. Secure, client-side unlocking.</p>
+  </header>
+
+  <main>
+    <section id="app" aria-label="PDF unlock tool">
+      <PdfUnlockTool client:load />
+    </section>
+  </main>
+
+  <Footer summaryText="Remove a password from your PDF, right in your browser. No upload, no server. Your file and its password never leave your device.">
+    <section id="how-it-works">
+      <h2>How to unlock a password-protected PDF online for free</h2>
+      <ol>
+        <li><strong>Upload your PDF.</strong> Select or drag-and-drop the password-protected file.</li>
+        <li><strong>Enter the password.</strong> Type the password currently required to open the PDF.</li>
+        <li><strong>Unlock and download.</strong> Click Unlock PDF and save a copy with the password removed.</li>
+      </ol>
+    </section>
+
+    <section id="why-pdkef">
+      <h2>Why use PDkef</h2>
+      <ul>
+        <li><strong>Free:</strong> no cost, no signup, no watermark, no limits.</li>
+        <li><strong>Private:</strong> your file and its password never leave your device; nothing is uploaded.</li>
+        <li><strong>Fast:</strong> unlocking happens instantly in your browser.</li>
+        <li><strong>Works everywhere:</strong> Chrome on macOS, Windows, Android, and iOS.</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <h3>Is unlocking a PDF here secure?</h3>
+      <p>Yes. The password and the file are processed 100% client-side, entirely in your browser. Nothing is uploaded to any server.</p>
+      <h3>Do I need to know the PDF's password?</h3>
+      <p>Yes. This tool removes a password you already know from a PDF - it does not crack, guess, or recover unknown passwords.</p>
+      <h3>What if I enter the wrong password?</h3>
+      <p>You'll see an error and can try again. No file data is sent anywhere when this happens, so there's no risk in retrying.</p>
+      <h3>Is there a limit on file size?</h3>
+      <p>No artificial limit. Unlocking runs entirely on your device, so the only constraint is your device's available memory.</p>
+    </section>
+  </Footer>
+</BaseLayout>

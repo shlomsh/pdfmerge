@@ -45,3 +45,32 @@ export async function renderThumbnail(file) {
     await loadingTask.destroy();
   }
 }
+
+export async function renderPdfThumbnails(file, onPageRender) {
+  const lib = await getPdfjs();
+  const bytes = await file.arrayBuffer();
+  const loadingTask = lib.getDocument({ data: bytes });
+  const pdf = await loadingTask.promise;
+  const numPages = pdf.numPages;
+
+  try {
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
+      const nativeViewport = page.getViewport({ scale: 1 });
+      const scale = TARGET_WIDTH / nativeViewport.width;
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext('2d');
+
+      await page.render({ canvasContext: context, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      onPageRender(i, dataUrl);
+    }
+    return numPages;
+  } finally {
+    await loadingTask.destroy();
+  }
+}

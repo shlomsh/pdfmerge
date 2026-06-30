@@ -43,58 +43,58 @@ still `noindex`'d and absent from the sitemap.
 
 - [ ] Manually verify in `build && preview`: open a PDF, add a signature/text,
       download, and confirm the output PDF actually contains the markup.
-- [ ] If it works: add a `<SeoSchema>` + visible HowTo/FAQ to `sign.astro`,
+- [x] If it works: add a `<SeoSchema>` + visible HowTo/FAQ to `sign.astro`,
       remove its `noindex`, add `/sign` to `sitemap.xml`. (`sign.astro` keyword:
       "Sign PDF Online Free".)
 - [ ] The `PdfSignTool.test.jsx` only covers initial render + load transition —
       extend it to assert the export path produces a blob.
 
-## 2. Split PDF — `/split`, `PdfSplitTool.jsx` (mock)
+## 2. Split PDF — `/split`, `PdfSplitTool.jsx` — done
 
-Keyword: "Split PDF Online Free - Extract Pages from PDF".
+Keyword: "Split PDF Online Free - Extract Pages from PDF". `src/lib/split.js`
+implements range parsing and page extraction. Promoted: de-noindexed, in the
+sitemap, has HowTo/FAQ + `<SeoSchema>`, and a component test
+(`PdfSplitTool.test.jsx`).
 
-- [ ] `src/lib/split.js`: load with pdf-lib, let the user pick page ranges
-      (e.g. `1-3, 5, 8-`), produce either one PDF of the kept pages or N PDFs.
-      If multiple output files, bundle them — consider a tiny dependency-free zip
-      (or just download sequentially) to avoid a network/library surprise; keep
-      the MIT/Apache + zero-network constraint.
-- [ ] Page-selection UI in the component (reuse `src/lib/thumbnails.js` for
-      page previews).
-- [ ] Replace the `setTimeout` mock; follow the DoD above.
+## 3. Remove Pages — `/remove-pages`, `PdfRemovePagesTool.jsx` — done
 
-## 3. Remove Pages — `/remove-pages`, `PdfRemovePagesTool.jsx` (mock)
+Keyword: "Remove Pages from PDF Online Free". `src/lib/removePages.js`
+removes selected page indices via a thumbnail grid (reuses
+`src/lib/thumbnails.js`). Promoted: de-noindexed, in the sitemap, has
+HowTo/FAQ + `<SeoSchema>`, and a component test
+(`PdfRemovePagesTool.test.jsx`).
 
-Keyword: "Remove Pages from PDF Online Free".
+## 4. PDF to Image — `/pdf-to-image`, `PdfToImageTool.jsx` — done
 
-- [ ] `src/lib/removePages.js`: load, `removePage()` the selected indices, save.
-- [ ] Thumbnail grid with per-page select/deselect (reuse `thumbnails.js`).
-- [ ] Replace the mock; follow the DoD. (Closely related to Split — they can
-      share a page-thumbnail selection component.)
+`src/lib/toImage.js` renders each page with `pdfjs-dist` to a canvas, then
+`canvas.toBlob()` as PNG or JPG at a chosen scale (Standard/High/Maximum).
+Multiple pages download sequentially (no zip dependency, per the
+MIT/Apache + zero-network constraint). Promoted: de-noindexed, in the
+sitemap, has HowTo/FAQ + `<SeoSchema>`, and a component test
+(`PdfToImageTool.test.jsx`). Verified with `npm run build && npm run preview`.
 
-## 4. PDF to Image — `/pdf-to-image`, `PdfToImageTool.jsx` (mock)
+## 5. Compress PDF — `/compress`, `PdfCompressTool.jsx` — done
 
-Keyword: "Convert PDF to Image Online Free - PDF to JPG/PNG".
+Keyword: "Compress PDF Online Free - Reduce PDF File Size". `src/lib/compress.js`
+rasterises pages via `pdfjs-dist` and re-encodes at one of three quality
+presets (Extreme/Recommended/High Quality), since pdf-lib alone doesn't
+recompress embedded image streams. Trade-off is disclosed on-page: output
+loses text selection/copy and embedded links. Promoted: de-noindexed, in the
+sitemap, has HowTo/FAQ + `<SeoSchema>`, and a component test
+(`PdfCompressTool.test.jsx`).
 
-- [ ] `src/lib/toImage.js`: render each page with `pdfjs-dist` to a canvas, then
-      `canvas.toBlob()` as PNG or JPG at a chosen DPI/quality. Multiple pages →
-      bundle/zip or download each.
-- [ ] UI: format toggle (PNG/JPG), quality/scale, per-page or all.
-- [ ] Replace the mock; follow the DoD. Note the worker-URL pattern in
-      `thumbnails.js` (Vite `new URL(...)`) — reuse it, never a CDN worker.
+## 6. Unlock PDF — `/unlock`, `PdfUnlockTool.jsx` — done
 
-## 5. Compress PDF — `/compress`, `PdfCompressTool.jsx` (mock) — hardest
-
-Keyword: "Compress PDF Online Free - Reduce PDF File Size".
-
-- [ ] `src/lib/compress.js`. **Caveat:** pdf-lib does NOT recompress embedded
-      image streams, so a naive `load()`+`save()` barely shrinks anything. Real
-      gains need rasterising/downsampling images: render pages or extract images
-      via `pdfjs-dist`, re-encode to lower-quality JPG on a canvas, rebuild the
-      PDF. Decide the approach (and its quality tradeoff) before building UI, and
-      verify it still meets the zero-network constraint. This is the most
-      research-heavy tool — scope it before committing to copy that promises
-      lossless compression.
-- [ ] Replace the mock; follow the DoD.
+Keyword: "Unlock PDF Online Free - Remove PDF Password". New tool, not in the
+original Phase 1 scope — added per SEO research recommending it as a
+high client-side fit, lower-competition target (privacy angle: users are
+reluctant to upload a password-protected file to a server to remove its
+password). `src/lib/unlock.js` uses `@cantoo/pdf-lib`'s native
+`PDFDocument.load(bytes, { password })` to decrypt — no new dependency.
+Promoted: de-noindexed, in the sitemap, has HowTo/FAQ + `<SeoSchema>`, a
+homepage tool card, and a component test (`PdfUnlockTool.test.jsx`).
+Verified with `npm run build && npm run preview` against a real encrypted
+PDF (both correct- and incorrect-password paths).
 
 ---
 

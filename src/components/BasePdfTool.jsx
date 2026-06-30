@@ -52,7 +52,7 @@ export default function BasePdfTool({
         )}
 
         <label class="file-picker-button">
-          {hasFiles ? 'Add more' : `Choose file${multiple ? 's' : ''}`}
+          {hasFiles ? (multiple ? 'Add more' : 'Choose a different file') : `Choose file${multiple ? 's' : ''}`}
           <input
             type="file"
             accept={accept}

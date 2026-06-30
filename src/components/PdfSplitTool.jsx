@@ -1,64 +1,487 @@
-// STUB (Phase 1): mock setTimeout, no real PDF processing yet. See TODO.md to implement.
-import { useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import BasePdfTool from './BasePdfTool.jsx';
+import { parsePageSelector, pageNumbersToRangeString, splitPdf } from '../lib/split.js';
+
+let pdfjsLib;
+async function getPdfjs() {
+  if (!pdfjsLib) {
+    pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).href;
+  }
+  return pdfjsLib;
+}
+
+const PROGRESS_RING_CIRCUMFERENCE = 2 * Math.PI * 18;
 
 export default function PdfSplitTool() {
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle');
+  const [numPages, setNumPages] = useState(0);
+  const [pages, setPages] = useState([]); // Array of { pageNumber, selected, thumbnail }
+  const [pageSelector, setPageSelector] = useState('');
+  const [pageSelectorError, setPageSelectorError] = useState('');
+  const [mode, setMode] = useState('combined'); // 'combined' | 'separate'
+  const [status, setStatus] = useState('idle'); // idle | loading | processing | done | error
+  const [progress, setProgress] = useState(0);
+  const [downloadFiles, setDownloadFiles] = useState([]); // Array of { url, filename, pageNumber }
+  const [rejectedFiles, setRejectedFiles] = useState([]);
+  const [announcement, setAnnouncement] = useState('');
 
-  const handleFilesAdded = (files) => {
-    const pdfs = Array.from(files).filter(f => f.type === 'application/pdf');
-    if (pdfs.length > 0) {
-      setFile(pdfs[0]); // For MVP split, we only handle one file at a time
+  const downloadRef = useRef(null);
+
+  useEffect(() => {
+    if (status === 'done' && downloadRef.current) {
+      downloadRef.current.focus();
+    }
+  }, [status]);
+
+  // Clean up object URLs on unmount or file change
+  useEffect(() => {
+    return () => {
+      setDownloadFiles((prev) => {
+        for (const f of prev) URL.revokeObjectURL(f.url);
+        return [];
+      });
+    };
+  }, []);
+
+  const resetOutput = () => {
+    setStatus('idle');
+    setProgress(0);
+    setDownloadFiles((prev) => {
+      for (const f of prev) URL.revokeObjectURL(f.url);
+      return [];
+    });
+  };
+
+  const loadDocumentAndThumbnails = async (pdfFile) => {
+    try {
+      const lib = await getPdfjs();
+      const bytes = await pdfFile.arrayBuffer();
+      const loadingTask = lib.getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+      
+      const pageCount = pdf.numPages;
+      setNumPages(pageCount);
+      
+      const initialPages = Array.from({ length: pageCount }, (_, idx) => ({
+        pageNumber: idx + 1,
+        selected: true,
+        thumbnail: null,
+      }));
+      setPages(initialPages);
+      setPageSelector(pageNumbersToRangeString(initialPages.map((p) => p.pageNumber)));
+      setStatus('idle');
+      setAnnouncement(`Loaded PDF "${pdfFile.name}" with ${pageCount} pages.`);
+
+      // Render thumbnails one-by-one asynchronously
+      for (let i = 1; i <= pageCount; i += 1) {
+        try {
+          const page = await pdf.getPage(i);
+          const nativeViewport = page.getViewport({ scale: 1 });
+          const scale = 100 / nativeViewport.width; // thumbnail width target
+          const viewport = page.getViewport({ scale });
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext('2d');
+          
+          await page.render({ canvasContext: context, viewport }).promise;
+          const url = canvas.toDataURL('image/png');
+          
+          setPages((current) =>
+            current.map((p) => (p.pageNumber === i ? { ...p, thumbnail: url } : p)),
+          );
+        } catch (err) {
+          console.error(`Error rendering thumbnail for page ${i}:`, err);
+        }
+      }
+      
+      await loadingTask.destroy();
+    } catch (err) {
+      console.error('Error loading PDF document:', err);
+      setStatus('error');
+      setAnnouncement('Failed to load PDF file.');
     }
   };
 
-  const handleSplit = () => {
-    setStatus('processing');
-    // Mock processing for Phase 1
-    setTimeout(() => {
-      setStatus('done');
-    }, 1500);
+  const handleFilesAdded = (fileList) => {
+    const incoming = Array.from(fileList);
+    const pdfs = incoming.filter((f) => f.type === 'application/pdf');
+    const rejected = incoming.filter((f) => f.type !== 'application/pdf');
+
+    if (rejected.length > 0) {
+      setRejectedFiles(rejected.map((f) => f.name));
+    } else {
+      setRejectedFiles([]);
+    }
+
+    if (pdfs.length > 0) {
+      const selected = pdfs[0];
+      setFile(selected);
+      setStatus('loading');
+      setProgress(0);
+      setDownloadFiles([]);
+      setPageSelector('');
+      setPageSelectorError('');
+      loadDocumentAndThumbnails(selected);
+    }
   };
 
   const reset = () => {
     setFile(null);
-    setStatus('idle');
+    setNumPages(0);
+    setPages([]);
+    setPageSelector('');
+    setPageSelectorError('');
+    setRejectedFiles([]);
+    resetOutput();
+    setAnnouncement('Cleared. Choose a PDF file to start again.');
+  };
+
+  const handlePageSelectorChange = (value) => {
+    setPageSelector(value);
+    resetOutput();
+    try {
+      const parsed = parsePageSelector(value, numPages);
+      setPages((prev) =>
+        prev.map((p) => ({ ...p, selected: parsed.includes(p.pageNumber) })),
+      );
+      setPageSelectorError('');
+    } catch (err) {
+      // If typing a partial/incomplete selector, don't show error immediately
+      const isPartial = /[-,]\s*$/.test(value);
+      if (!isPartial) {
+        setPageSelectorError(err.message);
+      } else {
+        setPageSelectorError('');
+      }
+    }
+  };
+
+  const togglePageSelection = (pageNumber) => {
+    resetOutput();
+    setPages((prev) => {
+      const next = prev.map((p) =>
+        p.pageNumber === pageNumber ? { ...p, selected: !p.selected } : p,
+      );
+      const selectedNums = next.filter((p) => p.selected).map((p) => p.pageNumber);
+      setPageSelector(pageNumbersToRangeString(selectedNums));
+      setPageSelectorError('');
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    resetOutput();
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, selected: true }));
+      setPageSelector(pageNumbersToRangeString(next.map((p) => p.pageNumber)));
+      setPageSelectorError('');
+      return next;
+    });
+  };
+
+  const selectNone = () => {
+    resetOutput();
+    setPages((prev) => {
+      const next = prev.map((p) => ({ ...p, selected: false }));
+      setPageSelector('');
+      setPageSelectorError('No pages selected');
+      return next;
+    });
+  };
+
+  const handleSplit = async () => {
+    if (!file) return;
+    setPageSelectorError('');
+    
+    let activePages = [];
+    try {
+      activePages = parsePageSelector(pageSelector, numPages);
+    } catch (err) {
+      setPageSelectorError(err.message);
+      return;
+    }
+
+    if (activePages.length === 0) {
+      setPageSelectorError('Please select at least one page.');
+      return;
+    }
+
+    setStatus('processing');
+    setProgress(0);
+    setAnnouncement('Splitting PDF file...');
+
+    try {
+      const results = await splitPdf(file, {
+        pageNumbers: activePages,
+        mode,
+        onProgress: setProgress,
+      });
+
+      setDownloadFiles(
+        results.map((r) => ({
+          ...r,
+          url: URL.createObjectURL(r.blob),
+        })),
+      );
+      setStatus('done');
+      setAnnouncement('PDF split complete. Ready to download.');
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      setAnnouncement('PDF split failed.');
+    }
+  };
+
+  const downloadAll = () => {
+    downloadFiles.forEach((f, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = f.url;
+        link.download = f.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }, index * 200);
+    });
   };
 
   const hasFiles = !!file;
+  const selectedCount = pages.filter((p) => p.selected).length;
+  const ringOffset = PROGRESS_RING_CIRCUMFERENCE - progress * PROGRESS_RING_CIRCUMFERENCE;
 
   return (
     <BasePdfTool hasFiles={hasFiles} onFilesAdded={handleFilesAdded} multiple={false}>
+      {rejectedFiles.length > 0 && (
+        <p class="hint-message" role="status">
+          {rejectedFiles.length === 1
+            ? `Skipped “${rejectedFiles[0]}” - not a PDF.`
+            : `Skipped ${rejectedFiles.length} files - not PDFs.`}
+        </p>
+      )}
+
       {hasFiles && (
         <div class="tool-workspace">
           <div class="list-header">
-            <span class="list-count">Splitting: {file.name}</span>
+            <span class="list-count">
+              File: {file.name} ({numPages} page{numPages === 1 ? '' : 's'})
+            </span>
             <button type="button" class="clear-all" onClick={reset}>
               Start over
             </button>
           </div>
 
-          <div class="mock-ui-placeholder" style={{ margin: '2rem 0', padding: '2rem', textAlign: 'center', background: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--color-border-strong)' }}>
-            <p style={{ color: 'var(--color-muted)' }}><em>[Page Thumbnails and Range Selection UI will be rendered here]</em></p>
-          </div>
-
-          <button
-            type="button"
-            class={`merge-button${status === 'processing' ? ' is-merging' : ''}${status === 'done' ? ' is-done' : ''}`}
-            disabled={status === 'processing'}
-            onClick={handleSplit}
-          >
-            {status === 'processing' ? 'Splitting...' : 'Split PDF'}
-          </button>
-
-          {status === 'done' && (
-            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-              <p style={{ color: 'var(--color-success)', fontWeight: '600' }}>Done! (Mock Phase 1)</p>
+          {status === 'loading' ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-muted)' }}>
+              <p>Loading document pages...</p>
             </div>
+          ) : (
+            <>
+              <div class="split-options">
+                <h3>1. Select split mode</h3>
+                <div class="split-modes" role="radiogroup" aria-label="Split mode">
+                  <button
+                    type="button"
+                    class={`split-card${mode === 'combined' ? ' is-selected' : ''}`}
+                    onClick={() => {
+                      setMode('combined');
+                      resetOutput();
+                    }}
+                    role="radio"
+                    aria-checked={mode === 'combined'}
+                  >
+                    <span class="split-card-title">Extract Pages</span>
+                    <span class="split-card-desc">
+                      Combine selected pages into a single new PDF document.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class={`split-card${mode === 'separate' ? ' is-selected' : ''}`}
+                    onClick={() => {
+                      setMode('separate');
+                      resetOutput();
+                    }}
+                    role="radio"
+                    aria-checked={mode === 'separate'}
+                  >
+                    <span class="split-card-title">Split into Individual Pages</span>
+                    <span class="split-card-desc">
+                      Extract each selected page as its own separate PDF file.
+                    </span>
+                  </button>
+                </div>
+
+                <h3>2. Choose pages to extract</h3>
+
+                <div class="page-selector-field">
+                  <label class="page-selector-label" for="page-selector-input">
+                    Page range
+                  </label>
+                  <input
+                    id="page-selector-input"
+                    type="text"
+                    class={`page-selector-input${pageSelectorError ? ' has-error' : ''}`}
+                    placeholder="e.g. 1-3, 5, 8-"
+                    value={pageSelector}
+                    onInput={(e) => handlePageSelectorChange(e.currentTarget.value)}
+                    aria-invalid={!!pageSelectorError}
+                    aria-describedby={pageSelectorError ? 'page-selector-error' : undefined}
+                  />
+                  <p class="field-hint">
+                    Enter page numbers or ranges separated by commas (e.g. 1-3, 5, 8-).
+                  </p>
+                </div>
+
+                {pageSelectorError && (
+                  <p id="page-selector-error" class="page-selector-error" role="alert">
+                    {pageSelectorError}
+                  </p>
+                )}
+
+                <div class="grid-actions">
+                  <button type="button" onClick={selectAll}>
+                    Select All
+                  </button>
+                  <button type="button" onClick={selectNone}>
+                    Clear Selection
+                  </button>
+                </div>
+
+                <div class="pages-grid" role="group" aria-label="Visual page grid">
+                  {pages.map((p) => (
+                    <div
+                      key={p.pageNumber}
+                      class={`page-card${p.selected ? ' is-selected' : ''}`}
+                      onClick={() => togglePageSelection(p.pageNumber)}
+                      role="checkbox"
+                      aria-checked={p.selected}
+                      tabIndex="0"
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          togglePageSelection(p.pageNumber);
+                        }
+                      }}
+                    >
+                      <div class="page-card-checkbox">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+
+                      <div class="page-card-thumb-container">
+                        {p.thumbnail ? (
+                          <img class="page-card-thumb" src={p.thumbnail} alt="" />
+                        ) : (
+                          <div class="thumb-placeholder" style={{ width: '100%', height: '100%' }} />
+                        )}
+                      </div>
+                      <span class="page-card-number">Page {p.pageNumber}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class={`merge-button${status === 'processing' ? ' is-merging' : ''}${status === 'done' ? ' is-done' : ''}`}
+                disabled={status === 'processing' || selectedCount === 0}
+                onClick={handleSplit}
+              >
+                {status === 'processing' ? (
+                  <span class="merge-button-progress">
+                    <svg class="progress-ring" width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
+                      <circle class="progress-ring-track" cx="20" cy="20" r="18" />
+                      <circle
+                        class="progress-ring-fill"
+                        cx="20"
+                        cy="20"
+                        r="18"
+                        stroke-dasharray={PROGRESS_RING_CIRCUMFERENCE}
+                        stroke-dashoffset={ringOffset}
+                      />
+                    </svg>
+                    Splitting… {Math.round(progress * 100)}%
+                  </span>
+                ) : selectedCount === 0 ? (
+                  'Select pages to split'
+                ) : mode === 'combined' ? (
+                  `Extract ${selectedCount} page${selectedCount === 1 ? '' : 's'} to single PDF`
+                ) : (
+                  `Split into ${selectedCount} separate PDF${selectedCount === 1 ? '' : 's'}`
+                )}
+              </button>
+
+              {status === 'error' && (
+                <div class="error-message" role="alert">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+                    <path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    <circle cx="12" cy="16" r="1" fill="currentColor" />
+                  </svg>
+                  <span>
+                    <strong>That didn't work.</strong> The split operation failed. Make sure the file is not encrypted or damaged.
+                  </span>
+                </div>
+              )}
+
+              {status === 'done' && downloadFiles.length > 0 && (
+                <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+                  {mode === 'combined' ? (
+                    <a
+                      ref={downloadRef}
+                      class="download-button"
+                      href={downloadFiles[0].url}
+                      download={downloadFiles[0].filename}
+                    >
+                      <svg class="download-check" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" class="check-circle" />
+                        <path d="M7.5 12.5l3 3 6-6.5" class="check-mark" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                      </svg>
+                      Download PDF
+                    </a>
+                  ) : (
+                    <>
+                      <button
+                        ref={downloadRef}
+                        type="button"
+                        class="download-button"
+                        onClick={downloadAll}
+                      >
+                        Download all {downloadFiles.length} PDFs
+                      </button>
+                      <ul class="file-list" style={{ width: '100%', maxWidth: '400px', margin: '0.5rem 0' }}>
+                        {downloadFiles.map((f) => (
+                          <li key={f.pageNumber} class="file-item">
+                            <span class="file-name">Page {f.pageNumber} PDF</span>
+                            <a href={f.url} download={f.filename}>
+                              Download
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  <button type="button" class="start-over" onClick={reset}>
+                    Start over
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
+
+      <p class="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
     </BasePdfTool>
   );
 }

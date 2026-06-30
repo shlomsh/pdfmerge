@@ -1,14 +1,38 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import SeoSchema from '../components/SeoSchema.astro';
 import PdfSplitTool from '../components/PdfSplitTool.jsx';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 const title = 'Split PDF Online Free - Extract Pages from PDF';
 const description = 'Split a PDF file online for free. Extract specific pages or separate into multiple documents in your browser. No upload, no signup, no watermark.';
+
+// Structured data mirrors the visible HowTo + FAQ rendered below.
+const howTo = {
+  name: 'How to split PDF files online for free',
+  steps: [
+    { name: 'Upload your PDF', text: 'Select the PDF file you want to split or drag-and-drop it into the tool.' },
+    { name: 'Choose split mode', text: 'Select to either extract your pages into a single combined PDF or split each page into a separate PDF.' },
+    { name: 'Select pages', text: 'Click on the page thumbnails or type page numbers and ranges (e.g., 1-3, 5, 8-).' },
+    { name: 'Split and download', text: 'Click the Split PDF button and download your generated files instantly.' },
+  ],
+};
+
+const faq = [
+  { question: 'Is the PDF split tool completely free to use?', answer: 'Yes. Like all tools on PDkef, the Split PDF tool is completely free with no limits, no signup required, and no watermarks added.' },
+  { question: 'Are my PDF files uploaded to a server?', answer: 'No. PDkef runs 100% on your device (client-side). Your files are processed locally in your browser and are never uploaded to any server, guaranteeing total privacy.' },
+  { question: 'How do page ranges work?', answer: 'You can enter specific pages separated by commas (e.g., 1, 3, 5), closed ranges (e.g., 2-4), or open-ended ranges like "5-" (from page 5 to the end of the document).' },
+  { question: 'What is the difference between Combined and Separate mode?', answer: 'Combined mode takes all selected pages and merges them into a single output PDF document. Separate mode extracts each selected page as its own individual PDF file.' },
+  { question: 'Is there a limit on file size or number of pages?', answer: "There is no artificial limit. The tool can handle any file size and page count, constrained only by your device's system memory." },
+];
 ---
 
-<BaseLayout title={title} description={description} noindex>
+<BaseLayout title={title} description={description}>
+  <Fragment slot="head">
+    <SeoSchema name="PDkef - Split PDF" description={description} howTo={howTo} faq={faq} />
+  </Fragment>
+
   <header>
     <h1>Split PDF online, free</h1>
     <p>Extract pages from your PDF file in seconds. Processing happens entirely on your device.</p>
@@ -19,5 +43,41 @@ const description = 'Split a PDF file online for free. Extract specific pages or
       <PdfSplitTool client:load />
     </section>
   </main>
-  <Footer />
+
+  <Footer summaryText="Extract pages or split a PDF file into separate documents, right in your browser. No upload, no server. Your files never leave your device.">
+    <section id="how-it-works">
+      <h2>How to split PDF files online for free</h2>
+      <ol>
+        <li><strong>Upload your PDF.</strong> Select the PDF file you want to split or drag-and-drop it into the tool.</li>
+        <li><strong>Choose split mode.</strong> Select to either extract your pages into a single combined PDF or split each page into a separate PDF.</li>
+        <li><strong>Select pages.</strong> Click on the page thumbnails or type page numbers and ranges (e.g., 1-3, 5, 8-).</li>
+        <li><strong>Split and download.</strong> Click the Split PDF button and download your generated files instantly.</li>
+      </ol>
+    </section>
+
+    <section id="why-pdkef">
+      <h2>Why use PDkef</h2>
+      <ul>
+        <li><strong>Free:</strong> no cost, no signup, no watermark, no limits.</li>
+        <li><strong>Private:</strong> your files never leave your device; nothing is uploaded.</li>
+        <li><strong>Fast:</strong> processing happens instantly in your browser.</li>
+        <li><strong>Works everywhere:</strong> Chrome on macOS, Windows, Android, and iOS.</li>
+        <li><strong>Open source:</strong> MIT licensed, inspect the code yourself.</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <h3>Is the PDF split tool completely free to use?</h3>
+      <p>Yes. Like all tools on PDkef, the Split PDF tool is completely free with no limits, no signup required, and no watermarks added.</p>
+      <h3>Are my PDF files uploaded to a server?</h3>
+      <p>No. PDkef runs 100% on your device (client-side). Your files are processed locally in your browser and are never uploaded to any server, guaranteeing total privacy.</p>
+      <h3>How do page ranges work?</h3>
+      <p>You can enter specific pages separated by commas (e.g., 1, 3, 5), closed ranges (e.g., 2-4), or open-ended ranges like "5-" (from page 5 to the end of the document).</p>
+      <h3>What is the difference between Combined and Separate mode?</h3>
+      <p>Combined mode takes all selected pages and merges them into a single output PDF document. Separate mode extracts each selected page as its own individual PDF file.</p>
+      <h3>Is there a limit on file size or number of pages?</h3>
+      <p>No artificial limit is imposed by PDkef. The only constraint is your device's available memory, since processing happens locally.</p>
+    </section>
+  </Footer>
 </BaseLayout>
