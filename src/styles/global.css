@@ -1969,8 +1969,10 @@ footer a {
 
 .compress-card-header {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 0.4rem 0.5rem;
   width: 100%;
 }
 
@@ -1989,6 +1991,8 @@ footer a {
   background: var(--color-surface-sunken);
   padding: 0.1rem 0.4rem;
   border-radius: var(--radius-pill);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .compress-card.is-selected .compress-card-tag {
@@ -2175,21 +2179,26 @@ footer a {
   gap: 0.5rem;
   background: var(--color-surface-sunken);
   border-radius: var(--radius-sm);
-  padding: 0.35rem 0.75rem;
+  padding: 0.55rem 0.9rem;
 }
 
 .target-size-input-row input {
-  width: 5ch;
+  width: 7ch;
   border: none;
   background: none;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--color-text);
-  text-align: right;
+  text-align: left;
 }
 
 .target-size-input-row input:focus-visible {
   outline: none;
+}
+
+.target-size-input-row input::-webkit-inner-spin-button,
+.target-size-input-row input::-webkit-outer-spin-button {
+  opacity: 1;
 }
 
 .target-size-unit {

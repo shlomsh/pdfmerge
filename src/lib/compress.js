@@ -106,6 +106,13 @@ const TARGET_SCALE_LADDER = [1.5, 1.1, 0.85, 0.65, 0.5]; // ~108, 79, 61, 47, 36
 const MIN_QUALITY = 0.05;
 const MAX_QUALITY = 0.92;
 const QUALITY_SEARCH_STEPS = 6;
+// Hard wall-clock budget for the whole DPI-tier x quality search. The loops
+// above are already finite (5 tiers x 6 steps), but each step's cost scales
+// with page count and resolution, so a large/adversarial PDF could still
+// take a very long time to exhaust every tier. Once the budget is spent we
+// stop searching and ship the best-effort result found so far rather than
+// let the tab hang.
+const MAX_SEARCH_MS = 20000;
 // Conservative per-page allowance for PDF container overhead (page object,
 // xref entries, etc.) so the byte-budget search doesn't overshoot the
 // caller's target once the pages are actually assembled into a PDF.
@@ -145,8 +152,10 @@ export async function compressPdfToTarget(file, { targetKB, onProgress } = {}) {
     const pageBudget = Math.max(1, targetBytes - totalPages * PDF_OVERHEAD_BYTES_PER_PAGE);
 
     let bestResult = null; // { quality, blobs, viewports, totalSize }
+    const deadline = Date.now() + MAX_SEARCH_MS;
 
     for (let scaleIndex = 0; scaleIndex < TARGET_SCALE_LADDER.length; scaleIndex += 1) {
+      if (bestResult && Date.now() > deadline) break; // time's up - ship the best-effort result
       const scale = TARGET_SCALE_LADDER[scaleIndex];
 
       const rendered = [];
@@ -190,6 +199,7 @@ export async function compressPdfToTarget(file, { targetKB, onProgress } = {}) {
       let hi = MAX_QUALITY;
       let feasible = bestResult;
       for (let step = 0; step < QUALITY_SEARCH_STEPS; step += 1) {
+        if (Date.now() > deadline) break; // time's up - keep the best quality found so far
         const mid = (lo + hi) / 2;
         const blobs = await Promise.all(rendered.map((r) => canvasToBlob(r.canvas, 'image/jpeg', mid)));
         const totalSize = sumBlobSizes(blobs);

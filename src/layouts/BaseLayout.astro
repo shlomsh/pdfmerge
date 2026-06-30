@@ -47,12 +47,7 @@ const isHome = Astro.url.pathname === '/';
     {!isHome && (
       <nav class="breadcrumb">
         <a href="/" class="brand-mark" aria-label="PDkef home">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect width="24" height="24" rx="6" fill="var(--color-primary)"/>
-            <path d="M7 5h7l3 3v9.5H7z" fill="#fff"/>
-            <path d="M14 5v3h3z" fill="#bcd9fb"/>
-            <circle cx="16.5" cy="16.5" r="4" fill="var(--color-primary)" stroke="#fff" stroke-width="1.2"/>
-          </svg>
+          <img src="/favicon.png" width="22" height="22" aria-hidden="true" alt="PDkef Logo" style="border-radius: 4px;" />
           <span>PDkef</span>
         </a>
         <a href="/" class="all-tools-link">
