@@ -8,9 +8,20 @@ A 100% client-side, no-backend static web app that provides a suite of PDF tools
 
 ### Implementation status (Phase 1)
 
-**Only Merge is functionally complete.** Split, Remove Pages, Compress, and PDF to Image are currently **UI scaffolding only** — `PdfSplitTool.jsx`, `PdfCompressTool.jsx`, `PdfRemovePagesTool.jsx`, and `PdfToImageTool.jsx` are placeholder stubs that accept a file, run a `setTimeout` mock delay, and show "Done! (Mock Phase 1)" without processing anything. There is no `src/lib/split.js` / `compress.js` / `toImage.js` yet; full implementation is deliberately deferred.
+Per-tool status — **see [TODO.md](./TODO.md) for the actionable, picked-up-by-the-next-agent task list.**
 
-Because of this, before these four pages go live they must NOT be indexed: keep them out of `sitemap.xml` and don't link to them from the merge page's copy until the real `src/lib/` logic lands. Their `.astro` pages already carry production SEO copy and JSON-LD claiming the tools work ("No upload, no signup, no watermark") — that copy is written ahead of the functionality, so shipping/indexing the routes now would point users at tools that silently do nothing. Treat "wire up the real per-tool logic" and "add the route to the sitemap" as a single unit of work per tool.
+| Tool | Route | Component | Functional? | Indexed? |
+| --- | --- | --- | --- | --- |
+| Merge | `/merge` | `PdfMergeTool.jsx` | ✅ yes (reference impl) | ✅ in sitemap |
+| Sign | `/sign` | `PdfSignTool.jsx` | ✅ implemented (real `pdfDoc.save()` + download), **needs verification** | ❌ `noindex`, not in sitemap |
+| Split | `/split` | `PdfSplitTool.jsx` | ❌ mock (`setTimeout` → "Done! (Mock Phase 1)") | ❌ `noindex` |
+| Remove Pages | `/remove-pages` | `PdfRemovePagesTool.jsx` | ❌ mock | ❌ `noindex` |
+| Compress | `/compress` | `PdfCompressTool.jsx` | ❌ mock | ❌ `noindex` |
+| PDF to Image | `/pdf-to-image` | `PdfToImageTool.jsx` | ❌ mock | ❌ `noindex` |
+
+The four mock tools accept a file, run a `setTimeout` delay, and show "Done! (Mock Phase 1)" without processing anything — there is no `src/lib/split.js` / `removePages.js` / `compress.js` / `toImage.js` yet. Their `.astro` pages already carry production SEO copy and JSON-LD-worthy claims ("No upload, no signup, no watermark") written ahead of the functionality, which is why they are `noindex`'d (via the `noindex` prop on `BaseLayout.astro`) and kept out of `sitemap.xml`: indexing them now would rank pages whose tools silently do nothing.
+
+**Definition of done for promoting any tool (do these as one unit — see TODO.md):** (1) implement the real `src/lib/` logic, no network calls; (2) replace the `setTimeout` mock in the component with the real call + download, mirroring `PdfMergeTool.jsx`; (3) add a visible HowTo/FAQ section to the `.astro` page and a matching `<SeoSchema>` (structured data must match on-page content); (4) remove `noindex` from the page; (5) add the route to `public/sitemap.xml`; (6) `npm run build && npm run preview` to confirm CSP/hydration (the dev server cannot catch CSP regressions — see the CSP section).
 
 ## Commands
 

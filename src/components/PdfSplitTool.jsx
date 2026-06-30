@@ -1,3 +1,4 @@
+// STUB (Phase 1): mock setTimeout, no real PDF processing yet. See TODO.md to implement.
 import { useState } from 'preact/hooks';
 import BasePdfTool from './BasePdfTool.jsx';
 
