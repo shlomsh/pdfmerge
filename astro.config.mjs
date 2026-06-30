@@ -13,4 +13,25 @@ export default defineConfig({
   site: 'https://pdfmerge.example.com',
   output: 'static',
   integrations: [preact()],
+  // Astro computes exact sha256 hashes for every inline script/style it
+  // emits (the astro-island hydration bootstrap, JSON-LD blocks) and bakes
+  // them into a <meta http-equiv="Content-Security-Policy"> tag on every
+  // build. This is what lets us run a strict CSP (no 'unsafe-inline')
+  // without the hashes going stale on the next Astro upgrade or content
+  // edit — vercel.json's header CSP only adds frame-ancestors, which
+  // <meta> CSP can't express. Only active in `build`/`preview`, not `dev`.
+  security: {
+    csp: {
+      directives: [
+        "default-src 'self'",
+        "connect-src 'self'",
+        "worker-src 'self' blob:",
+        "img-src 'self' data: blob:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "manifest-src 'self'",
+      ],
+    },
+  },
 });

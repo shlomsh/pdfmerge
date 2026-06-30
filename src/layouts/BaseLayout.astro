@@ -42,7 +42,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
   <body>
     <slot />
     {import.meta.env.PROD && (
-      <script is:inline>
+      <script>
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
         }
