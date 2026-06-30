@@ -101,9 +101,9 @@ PDF (both correct- and incorrect-password paths).
 
 ## Cross-cutting (after the tools, or alongside)
 
-- [ ] **Launch blockers from CLAUDE.md** still open: generate real PNG app icons
-      in `public/icons/` (only `favicon.svg` exists today) and an `/og-image.png`
-      referenced by `BaseLayout.astro`.
+- [x] PWA app icons (`public/icons/*.png`) and `og-image` are done — icons
+      depict a document + privacy-lock badge on the real brand blue
+      (`--color-primary: #0071e3`), generated via `sharp` from an inline SVG.
 - [ ] **`og:site_name` / visible header wordmark** — brand "PDkef" is in the
       title/h1/schema but there's no site-wide header logo or `og:site_name`.
 - [ ] When all tools are promoted, revisit whether the homepage hub still needs
