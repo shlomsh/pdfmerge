@@ -104,22 +104,33 @@ const tools = [
     // PWA installation handling
     let installPrompt = null;
     const installBtn = document.getElementById('install-pwa');
+    const installHint = document.getElementById('install-pwa-hint');
 
-    if (installBtn) {
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if (installBtn && !isStandalone) {
+      installBtn.style.display = 'inline-flex';
+
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         installPrompt = e;
-        installBtn.style.display = 'inline-flex';
       });
 
       installBtn.addEventListener('click', async () => {
-        if (!installPrompt) return;
-        installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
-        if (outcome === 'accepted') {
-          installPrompt = null;
-          installBtn.style.display = 'none';
+        if (installPrompt) {
+          installPrompt.prompt();
+          const { outcome } = await installPrompt.userChoice;
+          if (outcome === 'accepted') {
+            installPrompt = null;
+            installBtn.style.display = 'none';
+          }
+          return;
         }
+        // No native install prompt available on this browser (e.g. any
+        // browser on iOS, which is WebKit-only and never fires
+        // beforeinstallprompt) - point the user at the manual flow instead.
+        installHint.style.display = installHint.style.display === 'block' ? 'none' : 'block';
       });
     }
   </script>
@@ -149,14 +160,19 @@ const tools = [
       <p>Yes. The entire codebase is open source under the MIT license, so you can inspect exactly what runs on your device.</p>
     </section>
 
-    <button slot="about-extra" id="install-pwa" class="install-pwa-button" style="display: none; margin-top: 1.5rem;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-      Install as local app
-    </button>
+    <div slot="about-extra" style="margin-top: 1.5rem;">
+      <button id="install-pwa" class="install-pwa-button" style="display: none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Install as local app
+      </button>
+      <p id="install-pwa-hint" class="hint-message" role="status" style="display: none;">
+        Open your browser's menu and choose "Add to Home Screen" (iOS Safari/Chrome) or "Install app" (Android) to install PDkef.
+      </p>
+    </div>
   </Footer>
 </BaseLayout>
 
