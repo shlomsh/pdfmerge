@@ -1,3 +1,47 @@
+/* --- Handwriting Fonts --- */
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/Caveat-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Dancing Script';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/DancingScript-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Great Vibes';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/GreatVibes-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Gveret Levin';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/GveretLevin-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Pacifico';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/Pacifico-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Playpen Sans Hebrew';
+  src: url('/fonts/PlaypenSansHebrew-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Sacramento';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/Sacramento-Regular.ttf') format('truetype');
+}
+
 :root {
   /* Palette - navy ink on warm-cream surfaces, one electric-blue accent.
      A deeper, more distinctive evolution of the prior Apple-blue theme. */

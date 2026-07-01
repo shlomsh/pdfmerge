@@ -212,3 +212,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Handwriting Fonts — SIL Open Font License (OFL-1.1)
+
+The following fonts are distributed under the SIL Open Font License, Version 1.1:
+- Caveat (<https://fonts.google.com/specimen/Caveat>)
+- Dancing Script (<https://fonts.google.com/specimen/Dancing+Script>)
+- Great Vibes (<https://fonts.google.com/specimen/Great+Vibes>)
+- Gveret Levin (<https://fonts.google.com/specimen/Gveret+Levin>)
+- Pacifico (<https://fonts.google.com/specimen/Pacifico>)
+- Playpen Sans (<https://fonts.google.com/specimen/Playpen+Sans>)
+- Sacramento (<https://fonts.google.com/specimen/Sacramento>)
+
+```
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+```

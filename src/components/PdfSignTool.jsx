@@ -6,6 +6,16 @@ import DraggableOverlayElement from './DraggableOverlayElement.jsx';
 import PdfPageCanvas from './PdfPageCanvas.jsx';
 import { getPdfjs, uniqueId, signPdf } from '../lib/sign.js';
 
+const HANDWRITING_FONTS = [
+  'Caveat',
+  'Dancing Script',
+  'Great Vibes',
+  'Gveret Levin',
+  'Pacifico',
+  'Playpen Sans Hebrew',
+  'Sacramento'
+];
+
 export default function PdfSignTool() {
   const [file, setFile] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -26,6 +36,7 @@ export default function PdfSignTool() {
   // Signature Dialog state
   const [signatureMode, setSignatureMode] = useState('draw'); // 'draw' | 'type' | 'upload'
   const [typedName, setTypedName] = useState('');
+  const [typeFont, setTypeFont] = useState(HANDWRITING_FONTS[0]);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [penColor, setPenColor] = useState('#000000');
   const [penThickness, setPenThickness] = useState(2.5);
@@ -638,7 +649,7 @@ export default function PdfSignTool() {
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = "italic 44px 'Brush Script MT', 'Dancing Script', 'Caveat', 'Segoe Script', cursive";
+      ctx.font = `44px '${typeFont}', cursive`;
       ctx.fillText(typedName, canvas.width / 2, canvas.height / 2);
       
       const { dataUrl, aspectRatio } = trimCanvas(canvas);
@@ -1170,7 +1181,29 @@ export default function PdfSignTool() {
                 onInput={(e) => setTypedName(e.currentTarget.value)}
                 autoFocus
               />
-              <div className="sig-type-preview">
+              <div className="sig-font-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem', justifyContent: 'center' }}>
+                {HANDWRITING_FONTS.map(font => (
+                  <button
+                    key={font}
+                    type="button"
+                    className={`sig-font-btn ${typeFont === font ? 'active' : ''}`}
+                    onClick={() => setTypeFont(font)}
+                    style={{
+                      fontFamily: `'${font}', cursive`,
+                      fontSize: '1.2rem',
+                      padding: '0.3rem 0.8rem',
+                      border: `1px solid ${typeFont === font ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      borderRadius: 'var(--radius-sm)',
+                      background: typeFont === font ? 'var(--color-primary-soft)' : 'var(--color-surface)',
+                      color: typeFont === font ? 'var(--color-primary)' : 'var(--color-text)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {font}
+                  </button>
+                ))}
+              </div>
+              <div className="sig-type-preview" style={{ fontFamily: `'${typeFont}', cursive` }}>
                 {typedName || 'Signature Preview'}
               </div>
             </div>
