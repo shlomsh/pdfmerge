@@ -272,9 +272,16 @@ export default function PdfEditPagesTool() {
                       key={page.pageNumber}
                       class={`page-card${isRemoved ? ' is-removed' : ' is-selected'}`}
                       data-page={page.pageNumber}
+                      onClick={() => togglePage(page.pageNumber)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {/* Drag handle — full-width top bar */}
-                      <span class="page-drag-handle" title="Drag to reorder" aria-hidden="true">
+                      <span
+                        class="page-drag-handle"
+                        title="Drag to reorder"
+                        aria-hidden="true"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor">
                           <rect x="0" y="0" width="16" height="1.5" rx="0.75"/>
                           <rect x="0" y="4.25" width="16" height="1.5" rx="0.75"/>
@@ -286,7 +293,7 @@ export default function PdfEditPagesTool() {
                       <button
                         type="button"
                         class="page-card-checkbox"
-                        onClick={() => togglePage(page.pageNumber)}
+                        onClick={(e) => { e.stopPropagation(); togglePage(page.pageNumber); }}
                         aria-label={`Page ${page.pageNumber}${isRemoved ? ', marked for removal' : ', kept'}. Click to toggle.`}
                         aria-pressed={isRemoved}
                       >
@@ -302,7 +309,7 @@ export default function PdfEditPagesTool() {
                         )}
                       </button>
 
-                      <div class="page-card-thumb-container" onClick={() => togglePage(page.pageNumber)} style={{ cursor: 'pointer' }}>
+                      <div class="page-card-thumb-container" style={{ cursor: 'pointer' }}>
                         {page.thumbnail ? (
                           <img
                             class="page-card-thumb"
@@ -317,11 +324,11 @@ export default function PdfEditPagesTool() {
 
                       <span class="page-card-number">Page {page.pageNumber}</span>
 
-                      <div class="page-card-actions">
+                      <div class="page-card-actions" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           class="rotate-btn"
-                          onClick={() => rotatePage(page.pageNumber, 'left')}
+                          onClick={(e) => { e.stopPropagation(); rotatePage(page.pageNumber, 'left'); }}
                           aria-label={`Rotate page ${page.pageNumber} left`}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -329,7 +336,7 @@ export default function PdfEditPagesTool() {
                         <button
                           type="button"
                           class="rotate-btn"
-                          onClick={() => rotatePage(page.pageNumber, 'right')}
+                          onClick={(e) => { e.stopPropagation(); rotatePage(page.pageNumber, 'right'); }}
                           aria-label={`Rotate page ${page.pageNumber} right`}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
