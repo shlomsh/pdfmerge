@@ -1186,6 +1186,18 @@ footer a {
   gap: var(--space-4);
 }
 
+/* Full screen mode: the workspace becomes the fullscreen root element itself,
+   so give it its own background/scroll/padding rather than inheriting the
+   page's — the UA default fullscreen backdrop is plain black otherwise. */
+.sign-workspace:fullscreen,
+.sign-workspace:-webkit-full-screen {
+  max-width: none;
+  height: 100%;
+  background: var(--color-bg);
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
 .sign-toolbar-container {
   position: sticky;
   top: 1rem;
@@ -1317,6 +1329,7 @@ footer a {
    most of that box at small sizes, so the check icon fills the full box instead. */
 .sign-element--checkmark {
   padding: 0;
+  overflow: hidden;
 }
 
 .sign-element:hover {
@@ -1357,6 +1370,19 @@ footer a {
   pointer-events: none;
   transition: opacity 0.15s ease;
   white-space: nowrap;
+}
+
+/* Flipped when the default position (above, flush left) would clip off the
+   page's top/right edge — see the toolbarFlip measurement in
+   DraggableOverlayElement.jsx. */
+.sign-element-actions--right {
+  left: auto;
+  right: 0;
+}
+
+.sign-element-actions--below {
+  top: 100%;
+  margin-top: 8px;
 }
 
 /* Toolbar visibility is tied only to true selection (.active), not :hover —

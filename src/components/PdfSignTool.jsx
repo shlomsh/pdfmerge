@@ -1,54 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import SignaturePad from 'signature_pad';
 import BasePdfTool from './BasePdfTool.jsx';
-import { PDFDocument, rgb, StandardFonts } from '@cantoo/pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
-
-// Dynamic loader for PDFJS
-let pdfjsLib;
-async function getPdfjs() {
-  if (!pdfjsLib) {
-    pdfjsLib = await import('pdfjs-dist');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
-      import.meta.url,
-    ).href;
-  }
-  return pdfjsLib;
-}
-
-let nextId = 0;
-function uniqueId() {
-  return `el-${nextId++}`;
-}
-
-function hexToRgbFractions(hex, fallback = '#000000') {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || fallback);
-  const r = result ? parseInt(result[1], 16) / 255 : 0;
-  const g = result ? parseInt(result[2], 16) / 255 : 0;
-  const b = result ? parseInt(result[3], 16) / 255 : 0;
-  return { r, g, b };
-}
-
-// Recolors a signature PNG's ink while preserving its alpha shape (drawn/typed
-// signatures are opaque strokes on a transparent background).
-function tintImageDataUrl(dataUrl, hexColor) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = hexColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
+import ColorPicker from './ColorPicker.jsx';
+import DraggableOverlayElement from './DraggableOverlayElement.jsx';
+import PdfPageCanvas from './PdfPageCanvas.jsx';
+import { getPdfjs, uniqueId, signPdf } from '../lib/sign.js';
 
 export default function PdfSignTool() {
   const [file, setFile] = useState(null);
@@ -93,10 +49,29 @@ export default function PdfSignTool() {
   const pageWrapperRefs = useRef([]);
   const dialogRef = useRef(null);
   const canvasPadRef = useRef(null);
-  const isDrawingRef = useRef(false);
-  const lastDrawingPos = useRef({ x: 0, y: 0 });
+  const signaturePadRef = useRef(null);
   const downloadRef = useRef(null);
   const copiedElementRef = useRef(null);
+  const workspaceRef = useRef(null);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Track fullscreen state (also covers exiting via Esc, not just our own button)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === workspaceRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (workspaceRef.current?.requestFullscreen) {
+      workspaceRef.current.requestFullscreen();
+    }
+  };
 
   const logAction = (type, elId, pageIndex, description) => {
     setActionHistory((prev) => [
@@ -374,26 +349,40 @@ export default function PdfSignTool() {
     };
   }, [dialogOpen]);
 
-  // Draw Mode - Initialize Canvas
+  // Draw Mode - Initialize the SignaturePad (smoothed bezier strokes,
+  // pressure-aware, handles its own pointer/touch events on the canvas)
   useEffect(() => {
-    if (dialogOpen && canvasPadRef.current && signatureMode === 'draw') {
-      const canvas = canvasPadRef.current;
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-      ctx.strokeStyle = penColor;
-      ctx.lineWidth = penThickness;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+    if (!(dialogOpen && canvasPadRef.current && signatureMode === 'draw')) return;
 
-      setHasDrawn(false);
-    }
+    const canvas = canvasPadRef.current;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    canvas.getContext('2d').scale(ratio, ratio);
+
+    const pad = new SignaturePad(canvas, {
+      penColor,
+      minWidth: penThickness * 0.6,
+      maxWidth: penThickness,
+      backgroundColor: 'rgba(0,0,0,0)'
+    });
+    pad.addEventListener('endStroke', () => setHasDrawn(true));
+    signaturePadRef.current = pad;
+    setHasDrawn(false);
+
+    return () => {
+      pad.off();
+      signaturePadRef.current = null;
+    };
   }, [dialogOpen, signatureMode]);
+
+  // Apply pen color/thickness changes to the live pad without resetting the canvas
+  useEffect(() => {
+    if (!signaturePadRef.current) return;
+    signaturePadRef.current.penColor = penColor;
+    signaturePadRef.current.minWidth = penThickness * 0.6;
+    signaturePadRef.current.maxWidth = penThickness;
+  }, [penColor, penThickness]);
 
   // Handle PDF file selection
   const handleFilesAdded = async (fileList) => {
@@ -554,74 +543,8 @@ export default function PdfSignTool() {
     setTempPlacement(null);
   };
 
-  // Drawing Pad Canvas coordinates helper
-  const getDrawingPointerPos = (e) => {
-    const canvas = canvasPadRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
-    };
-  };
-
-  // Smooth drawing handler
-  const startDrawing = (e) => {
-    e.preventDefault();
-    const canvas = canvasPadRef.current;
-    if (!canvas) return;
-    
-    const pos = getDrawingPointerPos(e);
-    lastDrawingPos.current = pos;
-    isDrawingRef.current = true;
-    setHasDrawn(true);
-    
-    const ctx = canvas.getContext('2d');
-
-    // Draw dot on click/tap
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, penThickness / 2, 0, Math.PI * 2);
-    ctx.fillStyle = penColor;
-    ctx.fill();
-
-    const draw = (moveEvent) => {
-      if (!isDrawingRef.current) return;
-      moveEvent.preventDefault();
-      const newPos = getDrawingPointerPos(moveEvent);
-
-      ctx.beginPath();
-      ctx.strokeStyle = penColor;
-      ctx.lineWidth = penThickness;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.moveTo(lastDrawingPos.current.x, lastDrawingPos.current.y);
-      ctx.lineTo(newPos.x, newPos.y);
-      ctx.stroke();
-
-      lastDrawingPos.current = newPos;
-    };
-
-    const stopDrawing = () => {
-      isDrawingRef.current = false;
-      window.removeEventListener('mousemove', draw);
-      window.removeEventListener('mouseup', stopDrawing);
-      window.removeEventListener('touchmove', draw);
-      window.removeEventListener('touchend', stopDrawing);
-    };
-
-    window.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', stopDrawing);
-    window.addEventListener('touchmove', draw, { passive: false });
-    window.addEventListener('touchend', stopDrawing);
-  };
-
   const clearDrawing = () => {
-    const canvas = canvasPadRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    signaturePadRef.current?.clear();
     setHasDrawn(false);
   };
 
@@ -835,135 +758,8 @@ export default function PdfSignTool() {
     setAnnouncement('Writing signatures and text layers into PDF...');
 
     try {
-      const bytes = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(bytes);
-      pdfDoc.registerFontkit(fontkit);
-      
-      const loadedFonts = {};
-      const loadCustomFont = async (fontFamily, fontWeight, fontStyle) => {
-        let styleStr = 'Regular';
-        if (fontWeight === 'bold' && fontStyle === 'italic') styleStr = 'BoldItalic';
-        else if (fontWeight === 'bold') styleStr = 'Bold';
-        else if (fontStyle === 'italic') styleStr = 'Italic';
-        const fileName = `${fontFamily}-${styleStr}.ttf`;
-        
-        if (loadedFonts[fileName]) return loadedFonts[fileName];
-        
-        try {
-          const res = await fetch(`/fonts/${fileName}`);
-          const fontBytes = await res.arrayBuffer();
-          const customFont = await pdfDoc.embedFont(fontBytes);
-          loadedFonts[fileName] = customFont;
-          return customFont;
-        } catch (e) {
-          console.warn(`Could not load custom font ${fileName}`, e);
-          return null;
-        }
-      };
+      const signedBlob = await signPdf(file, elements, (p) => setProgress(p));
 
-      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      
-      // Process elements
-      for (let i = 0; i < elements.length; i++) {
-        const el = elements[i];
-        const page = pdfDoc.getPage(el.pageIndex);
-        const { width: pdfWidth, height: pdfHeight } = page.getSize();
-        
-        // Map screen percentages to PDF points
-        const pdfX = (el.left / 100) * pdfWidth;
-        const pdfY = pdfHeight - ((el.top / 100) * pdfHeight);
-
-        if (el.type === 'text') {
-          const fontSizeInPoints = el.fontSize || 12;
-          const textValue = (el.text || '').trim();
-          if (!textValue) continue;
-          
-          let resolvedFont = helveticaFont;
-          if (el.fontFamily && ['Arimo', 'Heebo', 'Assistant'].includes(el.fontFamily)) {
-             const customFont = await loadCustomFont(el.fontFamily, el.fontWeight, el.fontStyle);
-             if (customFont) resolvedFont = customFont;
-          } else {
-             if (el.fontWeight === 'bold' && el.fontStyle === 'italic') {
-               resolvedFont = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-             } else if (el.fontWeight === 'bold') {
-               resolvedFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-             } else if (el.fontStyle === 'italic') {
-               resolvedFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-             }
-          }
-          
-          const { r, g, b } = hexToRgbFractions(el.color);
-
-          // Helvetica baseline offset is roughly 85% of line height
-          const baselineAdjustedY = pdfY - (fontSizeInPoints * 0.85);
-
-          page.drawText(textValue, {
-            x: pdfX,
-            y: baselineAdjustedY,
-            size: fontSizeInPoints,
-            lineHeight: fontSizeInPoints * 1.2, // matches the editor's CSS line-height
-            font: resolvedFont,
-            color: rgb(r, g, b)
-          });
-        } else if (el.type === 'checkmark') {
-          const elWidthPoints = (el.width / 100) * pdfWidth;
-          const elHeightPoints = (el.height / 100) * pdfHeight;
-          const { r: cr, g: cg, b: cb } = hexToRgbFractions(el.color, '#1463ff');
-
-          if (el.mark === 'x') {
-            // Draw vector X: corner-to-corner diagonals
-            page.drawLine({
-              start: { x: pdfX, y: pdfY },
-              end: { x: pdfX + elWidthPoints, y: pdfY - elHeightPoints },
-              thickness: 2.2,
-              color: rgb(cr, cg, cb)
-            });
-            page.drawLine({
-              start: { x: pdfX + elWidthPoints, y: pdfY },
-              end: { x: pdfX, y: pdfY - elHeightPoints },
-              thickness: 2.2,
-              color: rgb(cr, cg, cb)
-            });
-          } else {
-            // Draw vector checkmark
-            // Start: Left edge, 40% height up from bottom
-            page.drawLine({
-              start: { x: pdfX, y: pdfY - elHeightPoints * 0.6 },
-              end: { x: pdfX + elWidthPoints * 0.35, y: pdfY - elHeightPoints },
-              thickness: 2.2,
-              color: rgb(cr, cg, cb)
-            });
-            // End: Top-right edge
-            page.drawLine({
-              start: { x: pdfX + elWidthPoints * 0.35, y: pdfY - elHeightPoints },
-              end: { x: pdfX + elWidthPoints, y: pdfY },
-              thickness: 2.2,
-              color: rgb(cr, cg, cb)
-            });
-          }
-        } else if (el.type === 'signature' && el.dataUrl) {
-          const elWidthPoints = (el.width / 100) * pdfWidth;
-          const elHeightPoints = (el.height / 100) * pdfHeight;
-          const sourceDataUrl = el.color && el.color !== '#000000'
-            ? await tintImageDataUrl(el.dataUrl, el.color)
-            : el.dataUrl;
-          const base64Data = sourceDataUrl.split(',')[1];
-          const embeddedImage = await pdfDoc.embedPng(base64Data);
-
-          page.drawImage(embeddedImage, {
-            x: pdfX,
-            y: pdfY - elHeightPoints, // origin at bottom-left of image box
-            width: elWidthPoints,
-            height: elHeightPoints
-          });
-        }
-        
-        setProgress((i + 1) / elements.length);
-      }
-
-      const signedBytes = await pdfDoc.save();
-      const signedBlob = new Blob([signedBytes], { type: 'application/pdf' });
-      
       setDownloadUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(signedBlob);
@@ -996,7 +792,7 @@ export default function PdfSignTool() {
   return (
     <BasePdfTool hasFiles={hasFiles} onFilesAdded={handleFilesAdded} multiple={false}>
       {hasFiles && status !== 'loading' && (
-        <div className="sign-workspace">
+        <div className="sign-workspace" ref={workspaceRef}>
           
           {/* Header Controls */}
           <div className="list-header" style={{ width: '100%' }}>
@@ -1119,6 +915,31 @@ export default function PdfSignTool() {
                       <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
                     </svg>
                     Undo
+                  </button>
+
+                  <div className="sign-tool-separator" />
+
+                  <button
+                    type="button"
+                    className="sign-tool-btn"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+                  >
+                    {isFullscreen ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+                        <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+                        <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+                        <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                        <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+                        <path d="M21 16v3a2 2 0 0 1-2 2h-3" />
+                        <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                      </svg>
+                    )}
                   </button>
 
                   <div className="sign-tool-separator" />
@@ -1330,7 +1151,7 @@ export default function PdfSignTool() {
                   />
                 </div>
               </div>
-              <div className="sig-pad-wrapper" onMouseDown={startDrawing} onTouchStart={startDrawing}>
+              <div className="sig-pad-wrapper">
                 <canvas ref={canvasPadRef} className="sig-canvas" />
                 <button type="button" className="sig-clear-btn" onClick={clearDrawing}>
                   Clear
@@ -1483,493 +1304,5 @@ export default function PdfSignTool() {
         {announcement}
       </p>
     </BasePdfTool>
-  );
-}
-
-// A handful of common ink colors, plus a native picker for anything else
-const PRESET_COLORS = ['#000000', '#d8342b', '#1463ff', '#1a8f54', '#112d4e'];
-
-function ColorPicker({ value, onChange, title, defaultColor = '#000000' }) {
-  return (
-    <div className="sign-color-picker">
-      {PRESET_COLORS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          className={`sign-color-swatch${(value || defaultColor) === c ? ' active' : ''}`}
-          style={{ background: c }}
-          onClick={() => onChange(c)}
-          title={c}
-        />
-      ))}
-      <input
-        type="color"
-        className="sign-color-input"
-        value={value || defaultColor}
-        onChange={(e) => onChange(e.target.value)}
-        title={title}
-      />
-    </div>
-  );
-}
-
-// Draggable Overlay Element Component
-function DraggableOverlayElement({
-  element,
-  isActive,
-  onSelect,
-  onChange,
-  onDelete,
-  onClone,
-  pageWidthPoints,
-  pageHeightPoints,
-  pageWrapperRef
-}) {
-  const elementRef = useRef(null);
-  const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
-  const [scaleFactor, setScaleFactor] = useState(1);
-  const [tintedSigUrl, setTintedSigUrl] = useState(null);
-  const textMeasureRef = useRef(null);
-  const [textInputWidth, setTextInputWidth] = useState(60);
-  const [textInputHeight, setTextInputHeight] = useState(24);
-
-  // Grow/shrink the text box to fit its content in both directions — width for
-  // the widest line (RTL and long/short text otherwise sit inside a leftover
-  // fixed-width box), height for however many lines Enter has introduced.
-  useEffect(() => {
-    if (element.type !== 'text' || !textMeasureRef.current) return;
-    setTextInputWidth(Math.max(20, textMeasureRef.current.scrollWidth + 4));
-    setTextInputHeight(Math.max(20, textMeasureRef.current.scrollHeight + 4));
-  }, [element.type, element.text, element.fontFamily, element.fontWeight, element.fontStyle, element.fontSize, scaleFactor]);
-
-  // Recolor the signature preview to match the chosen ink color
-  useEffect(() => {
-    if (element.type !== 'signature' || !element.dataUrl) return;
-    if (!element.color || element.color === '#000000') {
-      setTintedSigUrl(null);
-      return;
-    }
-    let cancelled = false;
-    tintImageDataUrl(element.dataUrl, element.color).then((tinted) => {
-      if (!cancelled) setTintedSigUrl(tinted);
-    });
-    return () => { cancelled = true; };
-  }, [element.type, element.dataUrl, element.color]);
-
-  // Responsive scaling handler to convert points size on screen
-  useEffect(() => {
-    if (!pageWrapperRef) return;
-    
-    const updateScale = () => {
-      const rect = pageWrapperRef.getBoundingClientRect();
-      setScaleFactor(rect.width / pageWidthPoints);
-    };
-
-    updateScale();
-    
-    // Resize observer or window resize listener
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [pageWrapperRef, pageWidthPoints]);
-
-  // Mouse/Touch Drag Handlers
-  const handlePointerDown = (e) => {
-    if (e.target.closest('.sign-element-actions') || e.target.closest('.sign-element-resizer')) {
-      return;
-    }
-    
-    onSelect(e);
-    
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      return;
-    }
-    
-    e.preventDefault();
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    dragStartPos.current = {
-      x: clientX,
-      y: clientY,
-      left: element.left,
-      top: element.top
-    };
-
-    const handlePointerMove = (moveEvent) => {
-      const moveX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-      const moveY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
-      
-      const dx = moveX - dragStartPos.current.x;
-      const dy = moveY - dragStartPos.current.y;
-      
-      const parentRect = pageWrapperRef.getBoundingClientRect();
-      
-      let newLeft = dragStartPos.current.left + (dx / parentRect.width) * 100;
-      let newTop = dragStartPos.current.top + (dy / parentRect.height) * 100;
-      
-      // Keep within bounds
-      newLeft = Math.max(0, Math.min(100 - (element.width || 4), newLeft));
-      newTop = Math.max(0, Math.min(100 - (element.height || 2), newTop));
-      
-      onChange({ left: newLeft, top: newTop });
-    };
-
-    const handlePointerUp = () => {
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('mouseup', handlePointerUp);
-      window.removeEventListener('touchmove', handlePointerMove);
-      window.removeEventListener('touchend', handlePointerUp);
-    };
-
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', handlePointerUp);
-    window.addEventListener('touchmove', handlePointerMove, { passive: false });
-    window.addEventListener('touchend', handlePointerUp);
-  };
-
-  // Resize handler for signature/checkmark elements (width/height) and text elements (font size)
-  const handleResizeStart = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const dragStartX = clientX;
-    const startWidth = element.width || 20;
-    const startFontSize = element.fontSize || 12;
-    const startLeft = element.left;
-    const startTop = element.top;
-    const startParentRect = pageWrapperRef.getBoundingClientRect();
-    const defaultRatio = element.type === 'checkmark' ? 1 : 0.4;
-    const ratioAtStart = element.aspectRatio || defaultRatio;
-    const startHeight = element.height || (startWidth * ratioAtStart * (startParentRect.width / startParentRect.height));
-
-    const handleResizeMove = (moveEvent) => {
-      const moveX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-      const dx = moveX - dragStartX;
-
-      if (element.type === 'text') {
-        const parentRect = pageWrapperRef.getBoundingClientRect();
-        // Scale font size in PDF points relative to drag distance in screen pixels
-        const deltaFontSize = (dx / parentRect.width) * pageWidthPoints;
-        const newFontSize = Math.max(6, Math.min(72, Math.round(startFontSize + deltaFontSize)));
-        onChange({ fontSize: newFontSize });
-        return;
-      }
-
-      const parentRect = pageWrapperRef.getBoundingClientRect();
-      const deltaWidthPercent = (dx / parentRect.width) * 100;
-
-      // Checkmarks use an absolute pixel floor (not a fixed %) so the box never
-      // shrinks past what its border/padding chrome needs to render the icon —
-      // a flat % floor collapses to a couple of screen pixels on a large page,
-      // leaving no content area for the SVG and making it vanish, not shrink.
-      const minWidth = element.type === 'checkmark'
-        ? (14 / parentRect.width) * 100
-        : 3;
-      let newWidth = startWidth + deltaWidthPercent;
-      newWidth = Math.max(minWidth, Math.min(60, newWidth)); // constraints (min% to 60%)
-
-      const ratio = element.aspectRatio || defaultRatio;
-      // Convert width percent to correct height percent using responsive page dimensions
-      const newHeight = newWidth * ratio * (parentRect.width / parentRect.height);
-
-      if (element.type === 'checkmark' || element.type === 'signature') {
-        // Grow/shrink around the box's center instead of its top-left corner
-        let newLeft = startLeft + (startWidth - newWidth) / 2;
-        let newTop = startTop + (startHeight - newHeight) / 2;
-        newLeft = Math.max(0, Math.min(100 - newWidth, newLeft));
-        newTop = Math.max(0, Math.min(100 - newHeight, newTop));
-        onChange({ width: newWidth, height: newHeight, left: newLeft, top: newTop });
-        return;
-      }
-
-      onChange({ width: newWidth, height: newHeight });
-    };
-
-    const handleResizeUp = () => {
-      window.removeEventListener('mousemove', handleResizeMove);
-      window.removeEventListener('mouseup', handleResizeUp);
-      window.removeEventListener('touchmove', handleResizeMove);
-      window.removeEventListener('touchend', handleResizeUp);
-    };
-
-    window.addEventListener('mousemove', handleResizeMove);
-    window.addEventListener('mouseup', handleResizeUp);
-    window.addEventListener('touchmove', handleResizeMove, { passive: false });
-    window.addEventListener('touchend', handleResizeUp);
-  };
-
-  // Styles for responsive placing
-  const style = {
-    left: `${element.left}%`,
-    top: `${element.top}%`,
-    width: element.width ? `${element.width}%` : 'auto',
-    height: element.height ? `${element.height}%` : 'auto',
-  };
-
-  // Font size responsive scaling for text elements
-  const textFontSize = (element.fontSize || 12) * scaleFactor;
-
-  return (
-    <div
-      ref={elementRef}
-      className={`sign-element${isActive ? ' active' : ''}${element.type === 'checkmark' ? ' sign-element--checkmark' : ''}`}
-      style={style}
-      onMouseDown={handlePointerDown}
-      onTouchStart={handlePointerDown}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Element options bar */}
-      <div className="sign-element-actions">
-          {element.type === 'text' && (
-            <>
-              <select 
-                className="sign-font-select"
-                value={element.fontFamily || 'Helvetica'}
-                onChange={(e) => onChange({ fontFamily: e.target.value })}
-                title="Font family"
-              >
-                <option value="Helvetica">Helvetica</option>
-                <option value="Arimo">Arial (Arimo)</option>
-                <option value="Assistant">Hebrew (Assistant)</option>
-                <option value="Heebo">Hebrew (Heebo)</option>
-                <option value="TimesRoman">Times Roman</option>
-                <option value="Courier">Courier</option>
-              </select>
-              <div className="sign-toolbar-divider" />
-              <button
-                type="button"
-                className="sign-element-btn"
-                onClick={() => onChange({ fontSize: Math.max(6, (element.fontSize || 12) - 1) })}
-                title="Decrease font size"
-              >
-                A-
-              </button>
-              <button
-                type="button"
-                className="sign-element-btn"
-                onClick={() => onChange({ fontSize: Math.min(72, (element.fontSize || 12) + 1) })}
-                title="Increase font size"
-              >
-                A+
-              </button>
-              <div className="sign-toolbar-divider" />
-              <button
-                type="button"
-                className={`sign-element-btn ${element.fontWeight === 'bold' ? 'active' : ''}`}
-                onClick={() => onChange({ fontWeight: element.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                title="Bold"
-              >
-                <b>B</b>
-              </button>
-              <button
-                type="button"
-                className={`sign-element-btn ${element.fontStyle === 'italic' ? 'active' : ''}`}
-                onClick={() => onChange({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })}
-                title="Italic"
-              >
-                <i>I</i>
-              </button>
-              <div className="sign-toolbar-divider" />
-              <ColorPicker
-                value={element.color}
-                onChange={(color) => onChange({ color })}
-                title="Text color"
-                defaultColor="#000000"
-              />
-              <div className="sign-toolbar-divider" />
-            </>
-          )}
-          {element.type === 'checkmark' && (
-            <>
-              <button
-                type="button"
-                className={`sign-element-btn ${(element.mark || 'check') === 'check' ? 'active' : ''}`}
-                onClick={() => onChange({ mark: 'check' })}
-                title="Check mark"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className={`sign-element-btn ${element.mark === 'x' ? 'active' : ''}`}
-                onClick={() => onChange({ mark: 'x' })}
-                title="X mark"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-                  <line x1="5" y1="5" x2="19" y2="19" />
-                  <line x1="19" y1="5" x2="5" y2="19" />
-                </svg>
-              </button>
-              <div className="sign-toolbar-divider" />
-              <ColorPicker
-                value={element.color}
-                onChange={(color) => onChange({ color })}
-                title="Checkbox color"
-                defaultColor="#1463ff"
-              />
-              <div className="sign-toolbar-divider" />
-            </>
-          )}
-          {element.type === 'signature' && (
-            <>
-              <ColorPicker
-                value={element.color}
-                onChange={(color) => onChange({ color })}
-                title="Signature color"
-                defaultColor="#000000"
-              />
-              <div className="sign-toolbar-divider" />
-            </>
-          )}
-          <button
-            type="button"
-            className="sign-element-btn"
-            onClick={() => {
-              const newId = `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-              onClone({
-                ...element,
-                id: newId,
-                left: Math.min(90, element.left + 4),
-                top: Math.min(90, element.top + 4)
-              });
-            }}
-            title="Duplicate element"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="sign-element-btn sign-element-btn-danger"
-            onClick={onDelete}
-            title="Delete element"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-          </button>
-      </div>
-
-      {/* Render element depending on type */}
-      {element.type === 'text' && (
-        <div className="sign-text-display" style={{ fontSize: `${textFontSize}px` }}>
-          <div
-            ref={textMeasureRef}
-            className="sign-text-measure"
-            style={{
-              fontSize: `${textFontSize}px`,
-              fontFamily: element.fontFamily || 'Helvetica',
-              fontWeight: element.fontWeight || 'normal',
-              fontStyle: element.fontStyle || 'normal'
-            }}
-          >
-            {/* Trailing zero-width space forces a trailing "\n" to get its own
-                measured line box — otherwise a plain div under-counts a blank
-                last line versus how the real textarea lays it out, and the
-                textarea then auto-scrolls to keep the cursor visible, clipping
-                the first line since overflow is hidden. */}
-            {(element.text || 'Click to edit') + '\u200B'}
-          </div>
-          <textarea
-            dir="auto"
-            wrap="off"
-            rows={1}
-            className="sign-text-input"
-            value={element.text}
-            placeholder="Click to edit"
-            onInput={(e) => onChange({ text: e.currentTarget.value })}
-            onFocus={onSelect}
-            style={{
-              width: `${textInputWidth}px`,
-              height: `${textInputHeight}px`,
-              fontSize: `${textFontSize}px`,
-              fontFamily: element.fontFamily || 'Helvetica',
-              fontWeight: element.fontWeight || 'normal',
-              fontStyle: element.fontStyle || 'normal',
-              color: element.color || '#000000'
-            }}
-          />
-        </div>
-      )}
-
-      {element.type === 'checkmark' && (
-        <div style={{ width: '100%', height: '100%', color: element.color || 'var(--color-primary)' }}>
-          {element.mark === 'x' ? (
-            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-              <line x1="4" y1="4" x2="20" y2="20" />
-              <line x1="20" y1="4" x2="4" y2="20" />
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          )}
-        </div>
-      )}
-
-      {element.type === 'signature' && element.dataUrl && (
-        <img
-          src={tintedSigUrl || element.dataUrl}
-          alt="Signature"
-          className="sign-sig-image"
-        />
-      )}
-
-      {/* Resizer control: width/height for signatures/checkmarks, font size for text */}
-      {isActive && (
-        <div
-          className="sign-element-resizer"
-          onMouseDown={handleResizeStart}
-          onTouchStart={handleResizeStart}
-          title={element.type === 'text' ? 'Drag to resize font size' : 'Drag to resize'}
-        />
-      )}
-    </div>
-  );
-}
-
-// Dedicated canvas rendering component for clean lifecycles and race-free layout paints
-function PdfPageCanvas({ pdfDocument, pageNum }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    if (!pdfDocument || !canvasRef.current) return;
-
-    let active = true;
-    const renderPage = async () => {
-      try {
-        const page = await pdfDocument.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 }); // sharp rendering
-        const canvas = canvasRef.current;
-        if (!canvas || !active) return;
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        const context = canvas.getContext('2d');
-        await page.render({ canvasContext: context, viewport }).promise;
-      } catch (err) {
-        console.error(`Error rendering page ${pageNum}:`, err);
-      }
-    };
-
-    renderPage();
-    return () => {
-      active = false;
-    };
-  }, [pdfDocument, pageNum]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="sign-page-canvas"
-    />
   );
 }
