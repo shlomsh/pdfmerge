@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import BasePdfTool from './BasePdfTool.jsx';
 import PdfPageCanvas from './PdfPageCanvas.jsx';
-import { getPdfjs, uniqueId } from '../lib/sign.js';
+import { getPdfjs, uniqueId, seedUniqueId } from '../lib/sign.js';
 import { redactPdf } from '../lib/redact.js';
+import { useDraftPersistence } from '../lib/useDraftPersistence.js';
 import { Eraser } from 'lucide-preact';
 
 export default function PdfRedactTool() {
@@ -39,6 +40,7 @@ export default function PdfRedactTool() {
 
   const pageWrapperRefs = useRef([]);
   const downloadRef = useRef(null);
+  const fileBytesRef = useRef(null);
 
   // Focus download button on success
   useEffect(() => {
@@ -54,36 +56,63 @@ export default function PdfRedactTool() {
     };
   }, [downloadUrl]);
 
-  const handleFilesAdded = async (fileList) => {
-    const incoming = Array.from(fileList);
-    const pdfs = incoming.filter((f) => f.type === 'application/pdf');
-    
-    if (pdfs.length === 0) {
-      setAnnouncement('Please select a valid PDF file.');
-      return;
-    }
-    
-    const selected = pdfs[0];
+  // Core loader shared by fresh file picks and draft restore. `bytes` is the source
+  // PDF's ArrayBuffer; `presetElements` seeds restored redaction boxes.
+  const loadPdf = async (selected, bytes, presetElements = [], restored = false) => {
     setFile(selected);
     setStatus('loading');
     setProgress(0);
-    setElements([]);
-    
+    setElements(presetElements);
+    seedUniqueId(presetElements);
+    fileBytesRef.current = bytes;
+
     try {
       const lib = await getPdfjs();
-      const bytes = await selected.arrayBuffer();
-      const doc = await lib.getDocument({ data: bytes }).promise;
-      
+      const doc = await lib.getDocument({ data: bytes.slice(0) }).promise;
+
       setPdfDocument(doc);
       setNumPages(doc.numPages);
       setStatus('editing');
-      setAnnouncement(`Loaded PDF "${selected.name}" with ${doc.numPages} pages.`);
+      setAnnouncement(
+        restored
+          ? `Restored your last draft of "${selected.name}".`
+          : `Loaded PDF "${selected.name}" with ${doc.numPages} pages.`
+      );
     } catch (err) {
       console.error(err);
       setStatus('error');
       setAnnouncement('Failed to load PDF file.');
     }
   };
+
+  const handleFilesAdded = async (fileList) => {
+    const incoming = Array.from(fileList);
+    const pdfs = incoming.filter((f) => f.type === 'application/pdf');
+
+    if (pdfs.length === 0) {
+      setAnnouncement('Please select a valid PDF file.');
+      return;
+    }
+
+    const selected = pdfs[0];
+    const bytes = await selected.arrayBuffer();
+    await loadPdf(selected, bytes, []);
+  };
+
+  const { clearDraft } = useDraftPersistence({
+    tool: 'redact',
+    file,
+    fileBytes: fileBytesRef.current,
+    elements,
+    extra: {},
+    status,
+    onRestore: (record) => {
+      const restoredFile = new File([record.fileBytes], record.fileName, {
+        type: record.fileType || 'application/pdf'
+      });
+      loadPdf(restoredFile, record.fileBytes, record.elements || [], true);
+    }
+  });
 
   const handlePointerDown = (e, pageIndex) => {
     if (e.target.closest('.redact-element-btn') || e.target.closest('.redact-box')) {
@@ -199,6 +228,8 @@ export default function PdfRedactTool() {
   };
 
   const reset = () => {
+    clearDraft();
+    fileBytesRef.current = null;
     setFile(null);
     setPdfDocument(null);
     setElements([]);

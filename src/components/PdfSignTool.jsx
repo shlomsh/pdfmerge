@@ -4,7 +4,8 @@ import BasePdfTool from './BasePdfTool.jsx';
 import ColorPicker from './ColorPicker.jsx';
 import DraggableOverlayElement from './DraggableOverlayElement.jsx';
 import PdfPageCanvas from './PdfPageCanvas.jsx';
-import { getPdfjs, uniqueId, signPdf } from '../lib/sign.js';
+import { getPdfjs, uniqueId, seedUniqueId, signPdf } from '../lib/sign.js';
+import { useDraftPersistence } from '../lib/useDraftPersistence.js';
 
 const HANDWRITING_FONTS = [
   'Caveat',
@@ -45,6 +46,9 @@ export default function PdfSignTool() {
   // Last color picked for any element, remembered across new placements
   const [lastColor, setLastColor] = useState('#000000');
 
+  // Last font family picked for a text element, remembered across new placements
+  const [lastFont, setLastFont] = useState('Helvetica');
+
   // Saved signatures and active signature state
   const [savedSignatures, setSavedSignatures] = useState([]);
   const [activeSignature, setActiveSignature] = useState(null);
@@ -64,6 +68,7 @@ export default function PdfSignTool() {
   const downloadRef = useRef(null);
   const copiedElementRef = useRef(null);
   const workspaceRef = useRef(null);
+  const fileBytesRef = useRef(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -146,6 +151,16 @@ export default function PdfSignTool() {
     }
   }, []);
 
+  // Load last-used text font from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pdf-toolkit:lastFont');
+      if (stored) setLastFont(stored);
+    } catch (e) {
+      console.error('Failed to load last font from localStorage:', e);
+    }
+  }, []);
+
   // Load last-used pen color/thickness from localStorage on mount
   useEffect(() => {
     try {
@@ -183,6 +198,16 @@ export default function PdfSignTool() {
       localStorage.setItem('pdf-toolkit:lastColor', color);
     } catch (e) {
       console.error('Failed to persist last color to localStorage:', e);
+    }
+  };
+
+  // Remember the font last picked for a text element, for future placements
+  const rememberFont = (fontFamily) => {
+    setLastFont(fontFamily);
+    try {
+      localStorage.setItem('pdf-toolkit:lastFont', fontFamily);
+    } catch (e) {
+      console.error('Failed to persist last font to localStorage:', e);
     }
   };
 
@@ -395,32 +420,27 @@ export default function PdfSignTool() {
     signaturePadRef.current.maxWidth = penThickness;
   }, [penColor, penThickness]);
 
-  // Handle PDF file selection
-  const handleFilesAdded = async (fileList) => {
-    const incoming = Array.from(fileList);
-    const pdfs = incoming.filter((f) => f.type === 'application/pdf');
-    
-    if (pdfs.length === 0) {
-      setAnnouncement('Please select a valid PDF file.');
-      return;
-    }
-    
-    const selected = pdfs[0];
+  // Core loader shared by fresh file picks and draft restore. `bytes` is the source
+  // PDF's ArrayBuffer; `preset` seeds restored elements/action history.
+  const loadPdf = async (selected, bytes, preset = {}, restored = false) => {
+    const presetElements = preset.elements || [];
     setFile(selected);
     setStatus('loading');
     setProgress(0);
-    setElements([]);
+    setElements(presetElements);
+    setActionHistory(preset.actionHistory || []);
     setActiveElementId(null);
     setSelectedTool(null);
-    
+    seedUniqueId(presetElements);
+    fileBytesRef.current = bytes;
+
     try {
       const lib = await getPdfjs();
-      const bytes = await selected.arrayBuffer();
-      const doc = await lib.getDocument({ data: bytes }).promise;
-      
+      const doc = await lib.getDocument({ data: bytes.slice(0) }).promise;
+
       setPdfDocument(doc);
       setNumPages(doc.numPages);
-      
+
       // Load all pages to read sizes
       const sizes = [];
       for (let i = 1; i <= doc.numPages; i++) {
@@ -430,13 +450,52 @@ export default function PdfSignTool() {
       }
       setPageSizes(sizes);
       setStatus('editing');
-      setAnnouncement(`Loaded PDF "${selected.name}" with ${doc.numPages} pages.`);
+      setAnnouncement(
+        restored
+          ? `Restored your last draft of "${selected.name}".`
+          : `Loaded PDF "${selected.name}" with ${doc.numPages} pages.`
+      );
     } catch (err) {
       console.error(err);
       setStatus('error');
       setAnnouncement('Failed to load PDF file.');
     }
   };
+
+  // Handle PDF file selection
+  const handleFilesAdded = async (fileList) => {
+    const incoming = Array.from(fileList);
+    const pdfs = incoming.filter((f) => f.type === 'application/pdf');
+
+    if (pdfs.length === 0) {
+      setAnnouncement('Please select a valid PDF file.');
+      return;
+    }
+
+    const selected = pdfs[0];
+    const bytes = await selected.arrayBuffer();
+    await loadPdf(selected, bytes, {});
+  };
+
+  const { clearDraft } = useDraftPersistence({
+    tool: 'sign',
+    file,
+    fileBytes: fileBytesRef.current,
+    elements,
+    extra: { actionHistory },
+    status,
+    onRestore: (record) => {
+      const restoredFile = new File([record.fileBytes], record.fileName, {
+        type: record.fileType || 'application/pdf'
+      });
+      loadPdf(
+        restoredFile,
+        record.fileBytes,
+        { elements: record.elements || [], actionHistory: record.extra?.actionHistory || [] },
+        true
+      );
+    }
+  });
 
 
 
@@ -466,7 +525,7 @@ export default function PdfSignTool() {
         top: topPercent,
         text: '',
         fontSize: 12, // in PDF points
-        fontFamily: 'Helvetica',
+        fontFamily: lastFont,
         fontWeight: 'normal',
         fontStyle: 'normal',
         color: lastColor
@@ -863,9 +922,12 @@ export default function PdfSignTool() {
   };
 
   const reset = () => {
+    clearDraft();
+    fileBytesRef.current = null;
     setFile(null);
     setPdfDocument(null);
     setElements([]);
+    setActionHistory([]);
     setActiveElementId(null);
     setStatus('idle');
     setProgress(0);
@@ -1113,6 +1175,7 @@ export default function PdfSignTool() {
                               onChange={(fields) => {
                                 updateElement(el.id, fields);
                                 if (fields.color) rememberColor(fields.color);
+                                if (fields.fontFamily) rememberFont(fields.fontFamily);
                               }}
                               onDelete={() => deleteElement(el.id)}
                               onClone={(cloneInfo) => {

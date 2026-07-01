@@ -1,6 +1,26 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { computePosition, offset, flip, shift } from '@floating-ui/dom';
 import { tintImageDataUrl } from '../lib/sign.js';
-import ColorPicker from './ColorPicker.jsx';
+import ColorPickerMenu from './ColorPickerMenu.jsx';
+import FontPickerMenu from './FontPickerMenu.jsx';
+
+// First strong-directional character wins (matches the Unicode bidi
+// algorithm's approach, and what dir="auto" does under the hood) —
+// covers the Hebrew and Arabic script blocks, including presentation forms.
+const RTL_CHAR = /[\u0591-\u07FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+function detectTextDirection(text) {
+  return RTL_CHAR.test(text || '') ? 'rtl' : 'ltr';
+}
+
+// `element.textDirection` is a manual override (set via the toolbar's
+// direction toggle) for when the user wants RTL layout — right-anchored
+// growth, right-aligned text — before typing anything, since there's no
+// reliable way to read the OS/IME keyboard language from the browser (see
+// detectTextDirection above, which only works once RTL characters exist).
+// Falls back to content-based auto-detection when no override is set.
+function getEffectiveTextDirection(element) {
+  return element.textDirection || detectTextDirection(element.text);
+}
 
 // Draggable Overlay Element Component
 export default function DraggableOverlayElement({
@@ -22,29 +42,65 @@ export default function DraggableOverlayElement({
   const [textInputWidth, setTextInputWidth] = useState(60);
   const [textInputHeight, setTextInputHeight] = useState(24);
   const actionsRef = useRef(null);
-  const [toolbarFlip, setToolbarFlip] = useState({ right: false, below: false });
+  const prevTextWidthRef = useRef(null);
 
   // Keep the floating toolbar on-screen: its default position (above, flush
   // left with the element) clips off the top/right edge for elements placed
-  // near the top or right of the page. Measure once per activation/move and
-  // flip to the opposite side only when the default position would overflow.
+  // near the top or right of the page. Positioning is delegated to Floating
+  // UI (@floating-ui/dom) rather than hand-rolled — it derives the toolbar's
+  // placement purely from the anchor's (elementRef) rect plus the toolbar's
+  // own size, never from the toolbar's own already-positioned rect, so it
+  // can't create the feedback loop a naive "measure my own rect, then flip"
+  // approach does (flip right → rect moves on-screen → flip back left →
+  // off-screen again → ... — the toolbar "freaking out" near edges).
+  // `flip()` swaps to below the element when there's no room above; `shift()`
+  // nudges it sideways to stay within the viewport instead of a hard
+  // left/right toggle.
   useEffect(() => {
-    if (!isActive || !actionsRef.current) return;
-    const margin = 8;
-    const rect = actionsRef.current.getBoundingClientRect();
-    setToolbarFlip({
-      right: rect.right > window.innerWidth - margin,
-      below: rect.top < margin
+    if (!isActive || !actionsRef.current || !elementRef.current) return;
+    const anchorEl = elementRef.current;
+    const toolbarEl = actionsRef.current;
+    let cancelled = false;
+    computePosition(anchorEl, toolbarEl, {
+      placement: 'top-start',
+      middleware: [offset(8), flip({ fallbackPlacements: ['bottom-start'] }), shift({ padding: 8 })]
+    }).then(({ x, y }) => {
+      if (cancelled) return;
+      toolbarEl.style.left = `${x}px`;
+      toolbarEl.style.top = `${y}px`;
     });
+    return () => { cancelled = true; };
   }, [isActive, element.left, element.top]);
 
   // Grow/shrink the text box to fit its content in both directions — width for
   // the widest line (RTL and long/short text otherwise sit inside a leftover
   // fixed-width box), height for however many lines Enter has introduced.
+  //
+  // For RTL content, growth must come out of the *left* edge, not the right:
+  // typing Hebrew/Arabic starts at the right and adds characters leftward, so
+  // the right edge (where typing began) has to stay put while `left` shifts
+  // left to make room — the opposite of the LTR case, where the box is
+  // anchored by its left edge and simply widens rightward as you type.
   useEffect(() => {
     if (element.type !== 'text' || !textMeasureRef.current) return;
-    setTextInputWidth(Math.max(20, textMeasureRef.current.scrollWidth + 4));
-    setTextInputHeight(Math.max(20, textMeasureRef.current.scrollHeight + 4));
+    const newWidth = Math.max(20, textMeasureRef.current.scrollWidth + 4);
+    const newHeight = Math.max(20, textMeasureRef.current.scrollHeight + 4);
+
+    if (
+      getEffectiveTextDirection(element) === 'rtl' &&
+      pageWrapperRef &&
+      prevTextWidthRef.current != null
+    ) {
+      const deltaPx = newWidth - prevTextWidthRef.current;
+      const parentWidth = pageWrapperRef.getBoundingClientRect().width;
+      if (deltaPx !== 0 && parentWidth > 0) {
+        onChange({ left: element.left - (deltaPx / parentWidth) * 100 });
+      }
+    }
+    prevTextWidthRef.current = newWidth;
+
+    setTextInputWidth(newWidth);
+    setTextInputHeight(newHeight);
   }, [element.type, element.text, element.fontFamily, element.fontWeight, element.fontStyle, element.fontSize, scaleFactor]);
 
   // Recolor the signature preview to match the chosen ink color
@@ -229,6 +285,7 @@ export default function DraggableOverlayElement({
 
   // Font size responsive scaling for text elements
   const textFontSize = (element.fontSize || 12) * scaleFactor;
+  const textDirection = element.type === 'text' ? getEffectiveTextDirection(element) : 'ltr';
 
   return (
     <div
@@ -242,23 +299,14 @@ export default function DraggableOverlayElement({
       {/* Element options bar */}
       <div
         ref={actionsRef}
-        className={`sign-element-actions${toolbarFlip.right ? ' sign-element-actions--right' : ''}${toolbarFlip.below ? ' sign-element-actions--below' : ''}`}
+        className="sign-element-actions"
       >
           {element.type === 'text' && (
             <>
-              <select
-                className="sign-font-select"
+              <FontPickerMenu
                 value={element.fontFamily || 'Helvetica'}
-                onChange={(e) => onChange({ fontFamily: e.target.value })}
-                title="Font family"
-              >
-                <option value="Helvetica">Helvetica</option>
-                <option value="Arimo">Arial (Arimo)</option>
-                <option value="Assistant">Hebrew (Assistant)</option>
-                <option value="Heebo">Hebrew (Heebo)</option>
-                <option value="TimesRoman">Times Roman</option>
-                <option value="Courier">Courier</option>
-              </select>
+                onChange={(fontFamily) => onChange({ fontFamily })}
+              />
               <div className="sign-toolbar-divider" />
               <button
                 type="button"
@@ -294,7 +342,36 @@ export default function DraggableOverlayElement({
                 <i>I</i>
               </button>
               <div className="sign-toolbar-divider" />
-              <ColorPicker
+              <button
+                type="button"
+                className={`sign-element-btn ${textDirection === 'rtl' ? 'active' : ''}`}
+                onClick={() => onChange({ textDirection: textDirection === 'rtl' ? 'ltr' : 'rtl' })}
+                title={
+                  textDirection === 'rtl'
+                    ? 'Right-to-left text (Hebrew/Arabic) — click to switch to left-to-right'
+                    : 'Left-to-right text — click to switch to right-to-left (Hebrew/Arabic)'
+                }
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  {textDirection === 'rtl' ? (
+                    <>
+                      <line x1="21" y1="6" x2="9" y2="6" />
+                      <line x1="21" y1="12" x2="7" y2="12" />
+                      <line x1="21" y1="18" x2="11" y2="18" />
+                      <polyline points="10 9 6 12 10 15" />
+                    </>
+                  ) : (
+                    <>
+                      <line x1="3" y1="6" x2="15" y2="6" />
+                      <line x1="3" y1="12" x2="17" y2="12" />
+                      <line x1="3" y1="18" x2="13" y2="18" />
+                      <polyline points="14 9 18 12 14 15" />
+                    </>
+                  )}
+                </svg>
+              </button>
+              <div className="sign-toolbar-divider" />
+              <ColorPickerMenu
                 value={element.color}
                 onChange={(color) => onChange({ color })}
                 title="Text color"
@@ -327,7 +404,7 @@ export default function DraggableOverlayElement({
                 </svg>
               </button>
               <div className="sign-toolbar-divider" />
-              <ColorPicker
+              <ColorPickerMenu
                 value={element.color}
                 onChange={(color) => onChange({ color })}
                 title="Checkbox color"
@@ -338,7 +415,7 @@ export default function DraggableOverlayElement({
           )}
           {element.type === 'signature' && (
             <>
-              <ColorPicker
+              <ColorPickerMenu
                 value={element.color}
                 onChange={(color) => onChange({ color })}
                 title="Signature color"
@@ -349,7 +426,7 @@ export default function DraggableOverlayElement({
           )}
           {element.type === 'whiteout' && (
             <>
-              <ColorPicker
+              <ColorPickerMenu
                 value={element.color}
                 onChange={(color) => onChange({ color })}
                 title="Whiteout color"
@@ -396,6 +473,7 @@ export default function DraggableOverlayElement({
           <div
             ref={textMeasureRef}
             className="sign-text-measure"
+            dir={textDirection}
             style={{
               fontSize: `${textFontSize}px`,
               fontFamily: element.fontFamily || 'Helvetica',
@@ -411,7 +489,7 @@ export default function DraggableOverlayElement({
             {(element.text || 'Click to edit') + '\u200B'}
           </div>
           <textarea
-            dir="auto"
+            dir={textDirection}
             wrap="off"
             rows={1}
             className="sign-text-input"
@@ -422,6 +500,7 @@ export default function DraggableOverlayElement({
             style={{
               width: `${textInputWidth}px`,
               height: `${textInputHeight}px`,
+              textAlign: textDirection === 'rtl' ? 'right' : 'left',
               fontSize: `${textFontSize}px`,
               fontFamily: element.fontFamily || 'Helvetica',
               fontWeight: element.fontWeight || 'normal',

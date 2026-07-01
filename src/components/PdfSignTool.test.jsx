@@ -411,6 +411,62 @@ describe('PdfSignTool UI flow', () => {
     window.URL.createObjectURL = originalCreateObjectURL;
   });
 
+  it('auto-detects RTL content in a text element and aligns it right, reverting when content becomes LTR again', async () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    act(() => {
+      render(<PdfSignTool />, container);
+    });
+
+    const file = makePdfFile('test.pdf');
+    const input = container.querySelector('input[type="file"]');
+    await act(async () => {
+      Object.defineProperty(input, 'files', { value: [file], configurable: true });
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Select text tool and place an element
+    const toolbarButtons = container.querySelectorAll('.sign-tool-btn');
+    const textBtn = Array.from(toolbarButtons).find(btn => btn.textContent.includes('Text'));
+    await act(async () => {
+      textBtn.click();
+    });
+
+    const overlay = container.querySelector('.sign-page-overlay');
+    await act(async () => {
+      overlay.dispatchEvent(new MouseEvent('click', { clientX: 100, clientY: 100, bubbles: true }));
+    });
+
+    const textInput = container.querySelector('.sign-text-input');
+    expect(textInput).not.toBeNull();
+
+    // A fresh, empty element defaults to LTR
+    expect(textInput.getAttribute('dir')).toBe('ltr');
+    expect(textInput.style.textAlign).toBe('left');
+
+    // Typing Hebrew flips the element to RTL
+    await act(async () => {
+      textInput.value = 'שלום עולם';
+      textInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(textInput.getAttribute('dir')).toBe('rtl');
+    expect(textInput.style.textAlign).toBe('right');
+
+    // Clearing the Hebrew and typing English text flips it back to LTR
+    await act(async () => {
+      textInput.value = 'Hello world';
+      textInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(textInput.getAttribute('dir')).toBe('ltr');
+    expect(textInput.style.textAlign).toBe('left');
+  });
+
   it('updates font selection and enables Save button when typing a signature', async () => {
     // Safely mock canvas context to prevent the live-preview useEffect from throwing
     const originalGetContext = HTMLCanvasElement.prototype.getContext;

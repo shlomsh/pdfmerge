@@ -1407,7 +1407,10 @@ footer a {
   height: 44px;
 }
 
-/* Edit controls: rich text toolbar */
+/* Edit controls: rich text toolbar. Position (top/left) is set inline by
+   Floating UI in DraggableOverlayElement.jsx, not here — the -44px/0 below
+   is only the pre-hydration fallback so the toolbar starts roughly in place
+   before the first computePosition() resolves. */
 .sign-element-actions {
   position: absolute;
   top: -44px;
@@ -1425,19 +1428,6 @@ footer a {
   pointer-events: none;
   transition: opacity 0.15s ease;
   white-space: nowrap;
-}
-
-/* Flipped when the default position (above, flush left) would clip off the
-   page's top/right edge — see the toolbarFlip measurement in
-   DraggableOverlayElement.jsx. */
-.sign-element-actions--right {
-  left: auto;
-  right: 0;
-}
-
-.sign-element-actions--below {
-  top: 100%;
-  margin-top: 8px;
 }
 
 /* Toolbar visibility is tied only to true selection (.active), not :hover —
@@ -1484,17 +1474,37 @@ footer a {
   margin: 0 4px;
 }
 
-.sign-font-select {
-  background: transparent;
-  color: #fff;
+.sign-font-trigger {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.sign-font-menu {
+  min-width: 0;
+  width: max-content;
+  padding: 0.35rem;
+  gap: 2px;
+}
+
+.sign-font-menu-item {
+  text-align: left;
   border: none;
-  font-size: 0.8rem;
-  padding: 2px 4px;
-  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
-.sign-font-select option {
-  color: #000;
+.sign-font-menu-item:hover {
+  background: var(--color-surface-sunken);
+}
+.sign-font-menu-item.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .sign-color-input {
@@ -1518,6 +1528,34 @@ footer a {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Compact swatch button that opens the color picker in a popover — keeps the
+   per-element floating toolbar narrow instead of showing the full palette
+   inline. Reuses .sign-tool-dropdown-container/.sign-dropdown-menu, the same
+   popover pattern as the saved-signatures dropdown. */
+.sign-color-trigger {
+  padding: 4px;
+}
+
+.sign-color-trigger-swatch {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Positioned via Floating UI (computePosition, fixed strategy) in
+   ColorPickerMenu.jsx rather than the centered-under-trigger CSS the other
+   .sign-dropdown-menu use sites rely on — it needs to stay on-screen
+   regardless of where its trigger ends up inside the already-repositioned
+   floating toolbar. */
+.sign-color-menu {
+  position: fixed;
+  min-width: 0;
+  width: max-content;
+  padding: 0.5rem;
 }
 
 .sign-color-swatch {

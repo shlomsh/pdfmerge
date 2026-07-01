@@ -19,6 +19,18 @@ export function uniqueId() {
   return `el-${nextId++}`;
 }
 
+// After restoring saved elements (ids like "el-7"), the module-level counter is still
+// 0, so fresh placements would collide with restored ids. Seed the counter past the
+// highest numeric suffix present so new ids stay unique.
+export function seedUniqueId(elements) {
+  let max = -1;
+  for (const el of elements || []) {
+    const match = /^el-(\d+)$/.exec(el?.id || '');
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  if (max + 1 > nextId) nextId = max + 1;
+}
+
 export function hexToRgbFractions(hex, fallback = '#000000') {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || fallback);
   const r = result ? parseInt(result[1], 16) / 255 : 0;
