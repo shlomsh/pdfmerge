@@ -130,7 +130,10 @@ const tools = [
         // No native install prompt available on this browser (e.g. any
         // browser on iOS, which is WebKit-only and never fires
         // beforeinstallprompt) - point the user at the manual flow instead.
-        installHint.style.display = installHint.style.display === 'block' ? 'none' : 'block';
+        // Always (re-)show rather than toggle, so a second tap still gives
+        // visible feedback instead of silently hiding the hint.
+        installHint.style.display = 'block';
+        installHint.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
   </script>

@@ -386,6 +386,10 @@ footer p {
   margin: 0;
 }
 
+.credit-line {
+  margin-top: 0.6rem !important;
+}
+
 footer a {
   color: var(--color-muted);
   text-decoration: underline;
