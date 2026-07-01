@@ -18,6 +18,11 @@
       "source": "/remove-pages",
       "destination": "/edit-pdf",
       "permanent": true
+    },
+    {
+      "source": "/protect",
+      "destination": "/unlock",
+      "permanent": true
     }
   ]
 }

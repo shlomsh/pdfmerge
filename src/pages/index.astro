@@ -4,8 +4,8 @@ import SeoSchema from '../components/SeoSchema.astro';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
-const title = 'PDkef - Free, Open Source PDF Tools. No Sign Up, No Server.';
-const description = 'A complete suite of PDF tools that run 100% locally in your browser - on desktop or mobile. Free and open source: no sign up, no paywalls, no limits.';
+const title = 'Sign & Fill PDF Free - No Sign-Up Local PDF Editor | PDkef';
+const description = 'Sign PDFs and fill interactive forms instantly with this 100% free, open-source online PDF editor that requires no account or software installation. With secure browser-local processing, files are never uploaded to an external server, providing a completely private, offline-capable workflow.';
 
 import { FileSignature, Merge, ImageUp, ImageDown, Split, Shrink, FileLock2, FileEdit, Eraser } from 'lucide-preact';
 
@@ -17,78 +17,66 @@ const faq = [
   { question: 'Is PDkef open source?', answer: 'Yes. The entire codebase is open source under the MIT license, so you can inspect exactly what runs on your device.' },
 ];
 
-// Categorized tools for better scannability and UX
-const toolCategories = [
+// Ordered by SEO priority score from the keyword research (search volume x
+// winnability x client-side fit) - highest-opportunity tools surface first.
+const tools = [
   {
-    category: 'Organize & Optimize',
-    tools: [
-      {
-        title: 'Merge PDF',
-        description: 'Combine multiple PDFs into a single document in seconds.',
-        href: '/merge/',
-        icon: Merge
-      },
-      {
-        title: 'Split PDF',
-        description: 'Extract specific pages or separate a PDF into multiple files.',
-        href: '/split/',
-        icon: Split
-      },
-      {
-        title: 'Edit PDF Pages',
-        description: 'Remove, rotate, and add page numbers to your PDF file easily.',
-        href: '/edit-pdf/',
-        icon: FileEdit
-      },
-      {
-        title: 'Compress PDF',
-        description: 'Reduce the file size of your PDF without losing quality.',
-        href: '/compress/',
-        icon: Shrink
-      }
-    ]
+    title: 'Sign & Fill PDF',
+    description: 'Fill interactive PDF forms and draw secure digital signatures instantly in your browser with zero registration, zero limits, and no watermarks.',
+    href: '/sign/',
+    icon: FileSignature
   },
   {
-    category: 'Sign & Secure',
-    tools: [
-      {
-        title: 'Sign PDF',
-        description: 'Fill out forms and sign agreements securely on your device.',
-        href: '/sign/',
-        icon: FileSignature
-      },
-      {
-        title: 'Protect & Unlock',
-        description: 'Add a password to secure your PDF or remove a known password.',
-        href: '/unlock/',
-        icon: FileLock2
-      },
-      {
-        title: 'Redact & Blur',
-        description: 'Securely hide, blur, or black out sensitive text and flatten the document.',
-        href: '/redact/',
-        icon: Eraser
-      }
-    ]
+    title: 'Merge PDF',
+    description: 'Combine multiple PDFs into a single document in seconds.',
+    href: '/merge/',
+    icon: Merge
   },
   {
-    category: 'Convert',
-    tools: [
-      {
-        title: 'PDF to Image',
-        description: 'Convert PDF pages into high-quality JPG or PNG images.',
-        href: '/pdf-to-image/',
-        icon: ImageUp
-      },
-      {
-        title: 'Image to PDF',
-        description: 'Combine JPG or PNG images into a single PDF document.',
-        href: '/image-to-pdf/',
-        icon: ImageDown
-      }
-    ]
+    title: 'PDF to Image',
+    description: 'Convert PDF pages into high-quality JPG or PNG images.',
+    href: '/pdf-to-image/',
+    icon: ImageUp
+  },
+  {
+    title: 'Image to PDF',
+    description: 'Combine JPG or PNG images into a single PDF document.',
+    href: '/image-to-pdf/',
+    icon: ImageDown
+  },
+  {
+    title: 'Split PDF',
+    description: 'Extract specific pages or separate a PDF into multiple files.',
+    href: '/split/',
+    icon: Split
+  },
+  {
+    title: 'Compress PDF',
+    description: 'Reduce the file size of your PDF without losing quality.',
+    href: '/compress/',
+    icon: Shrink
+  },
+  {
+    title: 'Protect & Unlock',
+    description: 'Add a password to secure your PDF or remove a known password.',
+    href: '/unlock/',
+    icon: FileLock2
+  },
+  {
+    title: 'Edit PDF Pages',
+    description: 'Remove, rotate, and add page numbers to your PDF file easily.',
+    href: '/edit-pdf/',
+    icon: FileEdit
+  },
+  {
+    title: 'Redact & Blur',
+    description: 'Securely hide, blur, or black out sensitive text and flatten the document.',
+    href: '/redact/',
+    icon: Eraser
   }
 ];
+
+const HeroIcon = tools[0].icon;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -105,24 +93,62 @@ const toolCategories = [
   </header>
 
   <main>
-    {toolCategories.map((group) => (
-      <section class="tool-category">
-        <h2 class="category-title">{group.category}</h2>
-        <div class="tool-grid">
-          {group.tools.map((tool) => (
-            <a href={tool.href} class="tool-card">
-              <div class="tool-icon">
-                <tool.icon size={24} strokeWidth={2} />
-              </div>
-              <div class="tool-content">
-                <h3>{tool.title}</h3>
-                <p>{tool.description}</p>
-              </div>
-            </a>
-          ))}
+    {/* Hero Card for the first tool */}
+    {tools.length > 0 && (
+      <a href={tools[0].href} class="hero-card">
+        <div class="hero-info">
+          <span class="hero-badge">Local & Private</span>
+          <h2>
+            <HeroIcon size={24} strokeWidth={2.5} style="display: inline-block; vertical-align: text-bottom; margin-right: 0.5rem; color: var(--color-primary);" />
+            {tools[0].title}
+          </h2>
+          <p>{tools[0].description}</p>
+          <span class="hero-cta">
+            Open tool
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </span>
         </div>
-      </section>
-    ))}
+        <div class="hero-visual" aria-hidden="true">
+          <div class="doc-mockup">
+            <div class="doc-line short"></div>
+            <div class="doc-line"></div>
+            <div class="doc-line medium"></div>
+            <div class="doc-sig-row">
+              <div class="doc-sig-label">Sign here:</div>
+              <div class="doc-sig-line">
+                <svg class="cursive-signature" viewBox="0 0 100 30" fill="none" stroke="var(--color-primary)" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M10,20 Q25,5 35,22 T55,12 T75,25 T90,10" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="pen-mockup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+        </div>
+      </a>
+    )}
+
+    {/* 4x2 Grid for the remaining 8 tools */}
+    <div class="tool-grid">
+      {tools.slice(1).map((tool) => (
+        <a href={tool.href} class="tool-card">
+          <div class="tool-icon">
+            <tool.icon size={24} strokeWidth={2} />
+          </div>
+          <div class="tool-content">
+            <h3>{tool.title}</h3>
+            <p>{tool.description}</p>
+          </div>
+        </a>
+      ))}
+    </div>
   </main>
 
   <script>
@@ -226,23 +252,210 @@ const toolCategories = [
     text-align: left;
   }
 
-  .tool-category {
-    margin-top: 1rem;
-    margin-bottom: 3.5rem;
+  .hero-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 3rem;
+    padding: 2rem 2.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out), border-color 0.4s var(--ease-out);
   }
 
-  .category-title {
-    font-size: 1.25rem;
+  .hero-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), 0 12px 24px -8px var(--color-primary-ring);
+    border-color: var(--color-primary-soft);
+  }
+
+  .hero-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
     font-weight: 600;
-    margin-bottom: 1.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .hero-info h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0;
     color: var(--color-text);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+  }
+
+  .hero-info p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+    color: var(--color-muted);
+    max-width: 560px;
+  }
+
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-top: 0.25rem;
+    transition: gap 0.2s var(--ease-out);
+  }
+
+  .hero-card:hover .hero-cta {
+    gap: 0.75rem;
+  }
+
+  .hero-visual {
+    position: relative;
+    width: 200px;
+    height: 120px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .doc-mockup {
+    width: 150px;
+    height: 105px;
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    transition: border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+  }
+
+  .hero-card:hover .doc-mockup {
+    border-color: var(--color-primary-soft);
+    transform: scale(1.02);
+  }
+
+  .doc-line {
+    height: 5px;
+    background: var(--color-border-strong);
+    border-radius: 3px;
+    width: 100%;
+  }
+
+  .doc-line.short { width: 40%; }
+  .doc-line.medium { width: 75%; }
+
+  .doc-sig-row {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .doc-sig-label {
+    font-size: 0.65rem;
+    color: var(--color-muted-light);
+    font-weight: 500;
+  }
+
+  .doc-sig-line {
+    flex: 1;
+    border-bottom: 1px dashed var(--color-muted-light);
+    height: 14px;
+    position: relative;
+  }
+
+  .cursive-signature {
+    position: absolute;
+    bottom: -2px;
+    left: 4px;
+    width: 60px;
+    height: 20px;
+    color: var(--color-primary);
+  }
+
+  .pen-mockup {
+    position: absolute;
+    right: 15px;
+    bottom: 5px;
+    width: 28px;
+    height: 28px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+    transform: rotate(-15deg);
+    transition: transform 0.3s var(--ease-spring), border-color 0.3s var(--ease-out);
+  }
+
+  .hero-card:hover .pen-mockup {
+    transform: rotate(0deg) translate(-2px, -2px);
+    border-color: var(--color-primary);
+  }
+
+  .pen-mockup svg {
+    width: 14px;
+    height: 14px;
   }
 
   .tool-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     grid-auto-rows: 1fr;
     gap: 1.5rem;
+  }
+
+  @media (max-width: 1024px) {
+    .tool-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+    .hero-visual {
+      display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .tool-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .tool-card {

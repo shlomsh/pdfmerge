@@ -18,9 +18,9 @@ Per-tool status — **see [TODO.md](./TODO.md) for the actionable, picked-up-by-
 | Remove Pages | `/remove-pages` | `PdfRemovePagesTool.jsx` | ✅ implemented (`src/lib/removePages.js`) | ✅ in sitemap |
 | Compress | `/compress` | `PdfCompressTool.jsx` | ✅ implemented (`src/lib/compress.js`, rasterizes + re-encodes pages) | ✅ in sitemap |
 | PDF to Image | `/pdf-to-image` | `PdfToImageTool.jsx` | ✅ implemented (`src/lib/toImage.js` + real downloads) | ✅ in sitemap |
-| Unlock | `/unlock` | `PdfSecurityTool.jsx` | ✅ implemented (`src/lib/unlock.js`, password removal via `@cantoo/pdf-lib`) | ✅ in sitemap |
-| Protect | `/protect` | `PdfSecurityTool.jsx` | ✅ implemented (`src/lib/protect.js`, password addition via `@cantoo/pdf-lib`) | ✅ in sitemap |
+| Unlock / Protect | `/unlock` | `PdfSecurityTool.jsx` | ✅ implemented (`src/lib/security.js`; auto-detects — encrypted files unlock, unencrypted files get protected). The `/protect` route was killed as redundant and 301s to `/unlock` (see `vercel.json`); the tool covers both intents on one page. | ✅ in sitemap |
 | Image to PDF | `/image-to-pdf` | `PdfImageToPdfTool.jsx` | ✅ implemented (`src/lib/imageToPdf.js`, embeds JPG/PNG via `@cantoo/pdf-lib`, one page per image at native size) | ✅ in sitemap |
+| Redact | `/redact` | `PdfRedactTool.jsx` | ✅ implemented (blackout/blur/whiteout, rasterizes redacted pages) | ✅ in sitemap |
 
 All Phase 1 tools are now functional and promoted (de-noindexed, in `public/sitemap.xml`, with a visible "How it works" + FAQ section and a matching `<SeoSchema>` on their pages). Unlock and Image to PDF were added beyond the original Phase 1 scope per SEO research identifying them as high client-side-fit, lower-competition keywords that reinforce the privacy-first positioning — Image to PDF (JPG/PNG batches into one PDF) was the original motivating use case for building this app. Remaining open items (header wordmark) are tracked in [TODO.md](./TODO.md).
 
