@@ -410,5 +410,79 @@ describe('PdfSignTool UI flow', () => {
     await loadingTask.destroy();
     window.URL.createObjectURL = originalCreateObjectURL;
   });
+
+  it('updates font selection and enables Save button when typing a signature', async () => {
+    // Safely mock canvas context to prevent the live-preview useEffect from throwing
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = () => ({
+      scale: vi.fn(), clearRect: vi.fn(), fillText: vi.fn(), 
+      measureText: vi.fn(() => ({ width: 100 }))
+    });
+
+    try {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      act(() => {
+        render(<PdfSignTool />, container);
+      });
+
+      const file = makePdfFile('test.pdf');
+      const input = container.querySelector('input[type="file"]');
+      await act(async () => {
+        Object.defineProperty(input, 'files', { value: [file], configurable: true });
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      localStorage.removeItem('pdf-toolkit:signatures');
+      const toolbarButtons = container.querySelectorAll('.sign-tool-btn');
+      const sigBtn = Array.from(toolbarButtons).find(btn => btn.textContent.includes('Signature'));
+      
+      await act(async () => {
+        sigBtn.click();
+      });
+
+      // Switch to Type mode
+      const tabBtns = container.querySelectorAll('.sig-tab-btn');
+      await act(async () => {
+        tabBtns[1].click(); // Type tab
+      });
+
+      // The Caveat font should be active by default
+      const fontBtns = Array.from(container.querySelectorAll('.sig-font-btn'));
+      const caveatBtn = fontBtns.find(btn => btn.textContent === 'Caveat');
+      expect(caveatBtn.classList.contains('active')).toBe(true);
+
+      // Select Pacifico
+      const pacificoBtn = fontBtns.find(btn => btn.textContent === 'Pacifico');
+      await act(async () => {
+        pacificoBtn.click();
+      });
+
+      // Pacifico should now be active, Caveat should not
+      expect(pacificoBtn.classList.contains('active')).toBe(true);
+      expect(caveatBtn.classList.contains('active')).toBe(false);
+
+      // Save button should be disabled initially
+      const saveSigBtn = container.querySelector('button.sig-btn-primary');
+      expect(saveSigBtn.disabled).toBe(true);
+
+      // Type a name
+      const typeInput = container.querySelector('.sig-type-input');
+      await act(async () => {
+        typeInput.value = 'Test Signature';
+        typeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      // Save button should now be enabled
+      expect(saveSigBtn.disabled).toBe(false);
+
+    } finally {
+      HTMLCanvasElement.prototype.getContext = originalGetContext;
+    }
+  });
 });
 
