@@ -79,6 +79,20 @@ export default function PdfRedactTool() {
     seedUniqueId(presetElements);
     fileBytesRef.current = bytes;
 
+    // pdf.js can hang indefinitely (not reject) on a corrupted/pathological file
+    // instead of throwing — with no timeout that leaves the user staring at an
+    // infinite "Loading PDF document..." spinner with no way out. Bail out after a
+    // generous window instead. For a restore specifically, the file wasn't even a
+    // choice the user made, so also drop the draft — otherwise a single bad
+    // autosave permanently bricks the tool on every future visit.
+    const timeoutId = setTimeout(() => {
+      if (loadIdRef.current !== loadId) return;
+      loadIdRef.current++; // invalidate this attempt so a late resolve/reject is ignored
+      if (restored) clearDraft();
+      setStatus('error');
+      setAnnouncement('This PDF is taking too long to load — it may be corrupted. Please try a different file.');
+    }, 20000);
+
     try {
       const lib = await getPdfjs();
       if (loadIdRef.current !== loadId) return;
@@ -96,8 +110,11 @@ export default function PdfRedactTool() {
     } catch (err) {
       if (loadIdRef.current !== loadId) return;
       console.error(err);
+      if (restored) clearDraft();
       setStatus('error');
       setAnnouncement('Failed to load PDF file.');
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

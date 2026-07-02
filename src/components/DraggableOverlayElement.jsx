@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useLayoutEffect } from 'preact/hooks';
 import { computePosition, offset, flip } from '@floating-ui/dom';
+import { PilcrowLeft, PilcrowRight } from 'lucide-preact';
 import { tintImageDataUrl } from '../lib/sign.js';
 import ColorPickerMenu from './ColorPickerMenu.jsx';
 import FontPickerMenu from './FontPickerMenu.jsx';
@@ -30,11 +31,19 @@ export default function DraggableOverlayElement({
   onChange,
   onDelete,
   onClone,
-  pageWidthPoints,
-  pageHeightPoints,
-  pageWrapperRef
+  pageWidthPoints
 }) {
   const elementRef = useRef(null);
+
+  // The element measures and positions itself relative to the page wrapper it lives
+  // inside, found via the DOM rather than passed down as a prop. Passing the wrapper
+  // node as a render-time prop was the source of a sizing bug: on the first render
+  // where a page and its elements appear together (draft restore), the parent's ref
+  // to the wrapper hasn't been attached yet, so the element received `undefined` and
+  // rendered at the wrong scale until an unrelated re-render happened. Reading it from
+  // our own position in the DOM (at layout/event time, when it's always attached)
+  // removes that timing dependency entirely.
+  const getPageWrapper = () => elementRef.current?.closest('.sign-page-wrapper') || null;
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const [scaleFactor, setScaleFactor] = useState(1);
   const [tintedSigUrl, setTintedSigUrl] = useState(null);
@@ -98,13 +107,14 @@ export default function DraggableOverlayElement({
     const newWidth = Math.max(20, textMeasureRef.current.scrollWidth + 4);
     const newHeight = Math.max(20, textMeasureRef.current.scrollHeight + 4);
 
+    const pageWrapper = getPageWrapper();
     if (
       getEffectiveTextDirection(element) === 'rtl' &&
-      pageWrapperRef &&
+      pageWrapper &&
       prevTextWidthRef.current != null
     ) {
       const deltaPx = newWidth - prevTextWidthRef.current;
-      const parentWidth = pageWrapperRef.getBoundingClientRect().width;
+      const parentWidth = pageWrapper.getBoundingClientRect().width;
       if (deltaPx !== 0 && parentWidth > 0) {
         onChange({ left: element.left - (deltaPx / parentWidth) * 100 });
       }
@@ -129,21 +139,26 @@ export default function DraggableOverlayElement({
     return () => { cancelled = true; };
   }, [element.type, element.dataUrl, element.color]);
 
-  // Responsive scaling handler to convert points size on screen
-  useEffect(() => {
-    if (!pageWrapperRef) return;
+  // Responsive scaling: convert the page's intrinsic PDF-point width to its rendered
+  // on-screen width, so text (sized in points) matches the rasterized page.
+  //
+  // useLayoutEffect (not useEffect) so the measured scale is applied before the browser
+  // paints — the element never flashes at the wrong (default 1x) size. A ResizeObserver
+  // on the page wrapper keeps it correct as the layout reflows (window resize, sidebar
+  // toggles, fullscreen), which a one-shot window 'resize' listener would miss.
+  useLayoutEffect(() => {
+    const pageWrapper = getPageWrapper();
+    if (!pageWrapper) return;
 
     const updateScale = () => {
-      const rect = pageWrapperRef.getBoundingClientRect();
-      setScaleFactor(rect.width / pageWidthPoints);
+      setScaleFactor(pageWrapper.getBoundingClientRect().width / pageWidthPoints);
     };
 
     updateScale();
-
-    // Resize observer or window resize listener
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [pageWrapperRef, pageWidthPoints]);
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(pageWrapper);
+    return () => observer.disconnect();
+  }, [pageWidthPoints]);
 
   // Mouse/Touch Drag Handlers
   const handlePointerDown = (e) => {
@@ -158,6 +173,10 @@ export default function DraggableOverlayElement({
     }
 
     e.preventDefault();
+
+    // Captured once for the gesture — the page wrapper can't change while dragging.
+    const pageWrapper = getPageWrapper();
+    if (!pageWrapper) return;
 
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -176,7 +195,7 @@ export default function DraggableOverlayElement({
       const dx = moveX - dragStartPos.current.x;
       const dy = moveY - dragStartPos.current.y;
 
-      const parentRect = pageWrapperRef.getBoundingClientRect();
+      const parentRect = pageWrapper.getBoundingClientRect();
 
       let newLeft = dragStartPos.current.left + (dx / parentRect.width) * 100;
       let newTop = dragStartPos.current.top + (dy / parentRect.height) * 100;
@@ -206,6 +225,10 @@ export default function DraggableOverlayElement({
     e.stopPropagation();
     e.preventDefault();
 
+    // Captured once for the gesture — the page wrapper can't change while resizing.
+    const pageWrapper = getPageWrapper();
+    if (!pageWrapper) return;
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const dragStartX = clientX;
@@ -214,7 +237,7 @@ export default function DraggableOverlayElement({
     const startFontSize = element.fontSize || 12;
     const startLeft = element.left;
     const startTop = element.top;
-    const startParentRect = pageWrapperRef.getBoundingClientRect();
+    const startParentRect = pageWrapper.getBoundingClientRect();
     const defaultRatio = element.type === 'checkmark' ? 1 : 0.4;
     const ratioAtStart = element.aspectRatio || defaultRatio;
     const startHeight = element.height || (startWidth * ratioAtStart * (startParentRect.width / startParentRect.height));
@@ -226,7 +249,7 @@ export default function DraggableOverlayElement({
       const dy = moveY - dragStartY;
 
       if (element.type === 'whiteout') {
-        const parentRect = pageWrapperRef.getBoundingClientRect();
+        const parentRect = pageWrapper.getBoundingClientRect();
         const deltaWidthPercent = (dx / parentRect.width) * 100;
         const deltaHeightPercent = (dy / parentRect.height) * 100;
         let newWidth = Math.max(1, Math.min(90, startWidth + deltaWidthPercent));
@@ -236,7 +259,7 @@ export default function DraggableOverlayElement({
       }
 
       if (element.type === 'text') {
-        const parentRect = pageWrapperRef.getBoundingClientRect();
+        const parentRect = pageWrapper.getBoundingClientRect();
         // Scale font size in PDF points relative to drag distance in screen pixels
         const deltaFontSize = (dx / parentRect.width) * pageWidthPoints;
         const newFontSize = Math.max(6, Math.min(72, Math.round(startFontSize + deltaFontSize)));
@@ -244,7 +267,7 @@ export default function DraggableOverlayElement({
         return;
       }
 
-      const parentRect = pageWrapperRef.getBoundingClientRect();
+      const parentRect = pageWrapper.getBoundingClientRect();
       const deltaWidthPercent = (dx / parentRect.width) * 100;
 
       // Checkmarks use an absolute pixel floor (not a fixed %) so the box never
@@ -364,23 +387,11 @@ export default function DraggableOverlayElement({
                     : 'Left-to-right text — click to switch to right-to-left (Hebrew/Arabic)'
                 }
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  {textDirection === 'rtl' ? (
-                    <>
-                      <line x1="21" y1="6" x2="9" y2="6" />
-                      <line x1="21" y1="12" x2="7" y2="12" />
-                      <line x1="21" y1="18" x2="11" y2="18" />
-                      <polyline points="10 9 6 12 10 15" />
-                    </>
-                  ) : (
-                    <>
-                      <line x1="3" y1="6" x2="15" y2="6" />
-                      <line x1="3" y1="12" x2="17" y2="12" />
-                      <line x1="3" y1="18" x2="13" y2="18" />
-                      <polyline points="14 9 18 12 14 15" />
-                    </>
-                  )}
-                </svg>
+                {textDirection === 'rtl' ? (
+                  <PilcrowLeft size={14} strokeWidth={2.5} />
+                ) : (
+                  <PilcrowRight size={14} strokeWidth={2.5} />
+                )}
               </button>
               <div className="sign-toolbar-divider" />
               <ColorPickerMenu

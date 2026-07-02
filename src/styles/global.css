@@ -154,53 +154,6 @@ a {
   border-radius: 4px;
 }
 
-/* --- Breadcrumb --- */
-.breadcrumb {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.breadcrumb a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.15s var(--ease-out);
-}
-
-.breadcrumb a:hover {
-  color: var(--color-text);
-}
-
-.breadcrumb a svg {
-  transition: transform 0.15s var(--ease-out);
-}
-
-.breadcrumb .all-tools-link:hover svg {
-  transform: translateX(-2px);
-}
-
-.breadcrumb .brand-mark {
-  color: var(--color-text);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  gap: 0.5rem;
-}
-
-.breadcrumb .brand-mark:hover {
-  color: var(--color-text);
-}
-
 /* --- Page header / hero --- */
 header {
   max-width: 1080px;
@@ -218,10 +171,46 @@ header h1 {
   color: var(--color-text);
 }
 
+.page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  text-align: left;
+}
+
+.page-title-block {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.page-title-block p {
+  margin: 0.75rem 0 0;
+  max-width: 60ch;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: opacity 0.15s var(--ease-out);
+}
+
+.brand-mark:hover {
+  opacity: 0.72;
+}
+
 .page-title-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.85rem;
 }
 
@@ -255,6 +244,20 @@ header h1 {
 .page-icon svg {
   width: 55%;
   height: 55%;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  color: var(--color-muted-light);
+  transition: color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+  transform: translateX(-2px);
 }
 
 header p {
@@ -1622,6 +1625,16 @@ footer a {
   gap: 4px;
 }
 
+/* Separates the common-color presets from the "any color" native picker. Uses
+   the theme border (not the toolbar's white-on-dark divider) since this popover
+   sits on the light --color-surface. */
+.sign-color-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--color-border);
+}
+
 /* Compact swatch button that opens the color picker in a popover — keeps the
    per-element floating toolbar narrow instead of showing the full palette
    inline. Reuses .sign-tool-dropdown-container/.sign-dropdown-menu, the same
@@ -1643,7 +1656,7 @@ footer a {
    .sign-dropdown-menu use sites rely on — it needs to stay on-screen
    regardless of where its trigger ends up inside the already-repositioned
    floating toolbar. */
-.sign-color-menu {
+.sign-dropdown-menu.sign-color-menu {
   position: fixed;
   min-width: 0;
   width: max-content;

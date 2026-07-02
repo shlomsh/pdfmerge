@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfSplitTool from '../components/PdfSplitTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { Split as SplitIcon } from 'lucide-preact';
 
@@ -25,11 +26,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><SplitIcon size={28} strokeWidth={2} /></div>
-      <h1>Split PDF Free: No Sign-Up, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><SplitIcon size={28} strokeWidth={2} /></div>
+          <h1>Split PDF Free: No Sign-Up, Runs Locally</h1>
+        </div>
+        <p>Extract a page range, pull out single pages, or break one PDF into several separate files.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Extract a page range, pull out single pages, or break one PDF into several separate files.</p>
   </header>
 
   <main>

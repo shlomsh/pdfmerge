@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfEditPagesTool from '../components/PdfEditPagesTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { FileEdit } from 'lucide-preact';
 
@@ -60,13 +61,18 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><FileEdit size={28} strokeWidth={2} /></div>
-      <h1>Edit PDF Free: No Sign-Up, Runs Locally</h1>
-    </div>
-    <p>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><FileEdit size={28} strokeWidth={2} /></div>
+          <h1>Edit PDF Free: No Sign-Up, Runs Locally</h1>
+        </div>
+        <p>
       Remove pages, rotate them, reorder by drag-and-drop, and add page numbers to any PDF.
     </p>
+      </div>
+      <BrandBack />
+    </div>
   </header>
 
   <main>

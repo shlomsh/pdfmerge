@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfMergeTool from '../components/PdfMergeTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { Merge as MergeIcon } from 'lucide-preact';
 
@@ -25,11 +26,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><MergeIcon size={28} strokeWidth={2} /></div>
-      <h1>Merge PDF Free: No Sign-Up, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><MergeIcon size={28} strokeWidth={2} /></div>
+          <h1>Merge PDF Free: No Sign-Up, Runs Locally</h1>
+        </div>
+        <p>Combine multiple PDFs into a single document and reorder pages by drag-and-drop before you export.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Combine multiple PDFs into a single document and reorder pages by drag-and-drop before you export.</p>
   </header>
 
   <main>

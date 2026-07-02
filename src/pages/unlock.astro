@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfSecurityTool from '../components/PdfSecurityTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { FileLock2 } from 'lucide-preact';
 
@@ -24,11 +25,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><FileLock2 size={28} strokeWidth={2} /></div>
-      <h1>Unlock PDF Free: No Sign-Up, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><FileLock2 size={28} strokeWidth={2} /></div>
+          <h1>Unlock PDF Free: No Sign-Up, Runs Locally</h1>
+        </div>
+        <p>Remove a known password from a PDF, or add one to protect a file - the tool detects which you need.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Remove a known password from a PDF, or add one to protect a file - the tool detects which you need.</p>
   </header>
 
   <main>

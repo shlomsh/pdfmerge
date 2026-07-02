@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfCompressTool from '../components/PdfCompressTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { Shrink } from 'lucide-preact';
 
@@ -26,11 +27,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><Shrink size={28} strokeWidth={2} /></div>
-      <h1>Compress PDF Free: No Limits, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><Shrink size={28} strokeWidth={2} /></div>
+          <h1>Compress PDF Free: No Limits, Runs Locally</h1>
+        </div>
+        <p>Shrink your PDF's file size instantly, even down to a target like 100KB for strict portal upload limits on tax records, applications, and scanned IDs.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Shrink your PDF's file size instantly, even down to a target like 100KB for strict portal upload limits on tax records, applications, and scanned IDs.</p>
   </header>
 
   <main>

@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfRedactTool from '../components/PdfRedactTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { Eraser } from 'lucide-preact';
 
@@ -45,13 +46,18 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><Eraser size={28} strokeWidth={2} /></div>
-      <h1>Redact PDF Free: No Sign-Up, Runs Locally</h1>
-    </div>
-    <p>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><Eraser size={28} strokeWidth={2} /></div>
+          <h1>Redact PDF Free: No Sign-Up, Runs Locally</h1>
+        </div>
+        <p>
       Black out or blur sensitive text like SSNs and addresses, then flatten the file so it can't be copied or extracted. Your redaction boxes are auto-saved on your device as you work, so a crash or accidental refresh never loses your progress.
     </p>
+      </div>
+      <BrandBack />
+    </div>
   </header>
 
   <main>

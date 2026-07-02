@@ -14,6 +14,7 @@ export default function ColorPicker({ value, onChange, title, defaultColor = '#0
           title={c}
         />
       ))}
+      <span className="sign-color-divider" aria-hidden="true" />
       <input
         type="color"
         className="sign-color-input"

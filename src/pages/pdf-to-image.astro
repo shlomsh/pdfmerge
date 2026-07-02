@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfToImageTool from '../components/PdfToImageTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { ImageUp } from 'lucide-preact';
 
@@ -25,11 +26,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><ImageUp size={28} strokeWidth={2} /></div>
-      <h1>PDF to Image Free: No Watermark, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><ImageUp size={28} strokeWidth={2} /></div>
+          <h1>PDF to Image Free: No Watermark, Runs Locally</h1>
+        </div>
+        <p>Turn each PDF page into a high-quality JPG or PNG - no watermark, ever. Choose the resolution for scanned IDs, contracts, or slides.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Turn each PDF page into a high-quality JPG or PNG - no watermark, ever. Choose the resolution for scanned IDs, contracts, or slides.</p>
   </header>
 
   <main>

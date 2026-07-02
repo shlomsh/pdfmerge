@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SeoSchema from '../components/SeoSchema.astro';
 import PdfImageToPdfTool from '../components/PdfImageToPdfTool.jsx';
 import Footer from '../components/Footer.astro';
+import BrandBack from '../components/BrandBack.astro';
 import '../styles/global.css';
 import { ImageDown } from 'lucide-preact';
 
@@ -26,11 +27,16 @@ const faq = [
   </Fragment>
 
   <header>
-    <div class="page-title-row">
-      <div class="page-icon"><ImageDown size={28} strokeWidth={2} /></div>
-      <h1>Image to PDF Free: No Watermark, Runs Locally</h1>
+    <div class="page-header-row">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <div class="page-icon"><ImageDown size={28} strokeWidth={2} /></div>
+          <h1>Image to PDF Free: No Watermark, Runs Locally</h1>
+        </div>
+        <p>Combine JPG or PNG images into a single PDF in any order - scanned pages, photographed slides, or screenshots.</p>
+      </div>
+      <BrandBack />
     </div>
-    <p>Combine JPG or PNG images into a single PDF in any order - scanned pages, photographed slides, or screenshots.</p>
   </header>
 
   <main>
