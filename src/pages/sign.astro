@@ -26,6 +26,10 @@ const faq = [
   {
     question: 'Can I type my signature instead of drawing?',
     answer: 'Yes. If you don\'t want to draw with a mouse or touch, you can select the "Type" option. It renders your name in a handwriting font and embeds it as a signature.'
+  },
+  {
+    question: 'What happens if my browser crashes while filling out a form?',
+    answer: 'Your work is not lost. As you add text, checkmarks, and signatures, the tool auto-saves your progress to local storage in your own browser, and restores it automatically the next time you open the tool on the same device. Because this happens on your device, your file is still never uploaded, and your saved draft is only cleared when you click Start over.'
   }
 ];
 ---
@@ -40,7 +44,7 @@ const faq = [
       <div class="page-icon"><FileSignature size={28} strokeWidth={2} /></div>
       <h1>Sign &amp; Fill PDF Free: No Sign-Up, Runs Locally</h1>
     </div>
-    <p>Fill out forms, tick checkboxes, type text, and add your signature to any PDF - school consent slips, contracts, and applications.</p>
+    <p>Fill out forms, tick checkboxes, type text, and add your signature to any PDF - school consent slips, contracts, and applications. Your progress is auto-saved on your device, so a crash or accidental refresh never loses your work.</p>
   </header>
 
   <main>
@@ -68,6 +72,7 @@ const faq = [
         <li><strong>No server, no paywalls:</strong> documents are processed 100% locally, right in your browser on a computer or phone - no upload, and no premium tier hiding the features you need.</li>
         <li><strong>HIPAA & GDPR safe:</strong> Since files never cross the network, this is the most secure way to sign confidential parent forms, child health forms, or school agreements.</li>
         <li><strong>No watermarks:</strong> Save your signed files for free without any watermarks or page limits.</li>
+        <li><strong>Auto-saved on your device:</strong> your progress is saved as you fill the form and restored if your browser crashes or you reload, with nothing uploaded. Most online editors can't recover your work without storing your file on their servers - this one recovers it while keeping the file private.</li>
         <li><strong>Open source:</strong> the entire codebase is public and MIT licensed - inspect exactly what runs on your device.</li>
       </ul>
     </section>
@@ -82,6 +87,8 @@ const faq = [
       <p>Absolutely. Unlike standard PDF signing websites that upload your signature and PDF file to their servers, this tool runs entirely on your device. There is no account and no server-side copy of your document to retain or breach - your signature image is embedded in the PDF in-memory and never leaves your computer or phone.</p>
       <h3>Can I type my signature instead of drawing?</h3>
       <p>Yes. If you don't want to draw with a mouse or touch, you can select the "Type" option. It renders your name in a handwriting font and embeds it as a signature.</p>
+      <h3>What happens if my browser crashes while filling out a form?</h3>
+      <p>Your work is not lost. As you add text, checkmarks, and signatures, the tool auto-saves your progress to local storage in your own browser, and restores it automatically the next time you open the tool on the same device. Because this happens on your device, your file is still never uploaded, and your saved draft is only cleared when you click Start over.</p>
     </section>
   </Footer>
 </BaseLayout>

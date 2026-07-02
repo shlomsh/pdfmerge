@@ -32,6 +32,7 @@ export default function PdfSignTool() {
   
   const [actionHistory, setActionHistory] = useState([]);
   const [undoModalOpen, setUndoModalOpen] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [undoSelection, setUndoSelection] = useState(new Set());
   
   // Signature Dialog state
@@ -48,6 +49,12 @@ export default function PdfSignTool() {
 
   // Last font family picked for a text element, remembered across new placements
   const [lastFont, setLastFont] = useState('Helvetica');
+
+  // Last manually-toggled text direction, remembered across new placements —
+  // lets a form filled in the same language keep predicting direction
+  // without re-toggling per field. null means "no manual override yet",
+  // so new elements fall back to content-based auto-detection.
+  const [lastDirection, setLastDirection] = useState(null);
 
   // Saved signatures and active signature state
   const [savedSignatures, setSavedSignatures] = useState([]);
@@ -69,6 +76,12 @@ export default function PdfSignTool() {
   const copiedElementRef = useRef(null);
   const workspaceRef = useRef(null);
   const fileBytesRef = useRef(null);
+  const loadIdRef = useRef(0);
+  // Whichever of {manual file pick, draft restore} happens first (in call order) wins
+  // outright; the other is skipped entirely. This closes the gap the loadId guard alone
+  // doesn't cover: a slow draft restore that resolves *after* a fast manual pick has
+  // already finished editing would otherwise still be "the newer call" and clobber it.
+  const loadStartedRef = useRef(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -422,7 +435,14 @@ export default function PdfSignTool() {
 
   // Core loader shared by fresh file picks and draft restore. `bytes` is the source
   // PDF's ArrayBuffer; `preset` seeds restored elements/action history.
+  //
+  // Draft restore reads from IndexedDB asynchronously, so it can still be in flight
+  // when the user drops/picks a fresh file — two overlapping loadPdf calls would
+  // otherwise race, and whichever's awaits happened to resolve last would silently
+  // clobber the other's state. Tag each call with an id and ignore any state updates
+  // from a call that's been superseded by a newer one.
   const loadPdf = async (selected, bytes, preset = {}, restored = false) => {
+    const loadId = ++loadIdRef.current;
     const presetElements = preset.elements || [];
     setFile(selected);
     setStatus('loading');
@@ -436,7 +456,9 @@ export default function PdfSignTool() {
 
     try {
       const lib = await getPdfjs();
+      if (loadIdRef.current !== loadId) return;
       const doc = await lib.getDocument({ data: bytes.slice(0) }).promise;
+      if (loadIdRef.current !== loadId) return;
 
       setPdfDocument(doc);
       setNumPages(doc.numPages);
@@ -445,9 +467,11 @@ export default function PdfSignTool() {
       const sizes = [];
       for (let i = 1; i <= doc.numPages; i++) {
         const page = await doc.getPage(i);
+        if (loadIdRef.current !== loadId) return;
         const { width, height } = page.getViewport({ scale: 1.0 });
         sizes.push({ width, height });
       }
+      if (loadIdRef.current !== loadId) return;
       setPageSizes(sizes);
       setStatus('editing');
       setAnnouncement(
@@ -456,6 +480,7 @@ export default function PdfSignTool() {
           : `Loaded PDF "${selected.name}" with ${doc.numPages} pages.`
       );
     } catch (err) {
+      if (loadIdRef.current !== loadId) return;
       console.error(err);
       setStatus('error');
       setAnnouncement('Failed to load PDF file.');
@@ -472,6 +497,10 @@ export default function PdfSignTool() {
       return;
     }
 
+    // Claim the load slot synchronously, before the arrayBuffer() await, so a draft
+    // restore resolving in that gap sees the claim and backs off instead of racing us.
+    loadStartedRef.current = true;
+
     const selected = pdfs[0];
     const bytes = await selected.arrayBuffer();
     await loadPdf(selected, bytes, {});
@@ -485,6 +514,10 @@ export default function PdfSignTool() {
     extra: { actionHistory },
     status,
     onRestore: (record) => {
+      // A manual pick already claimed the load slot (even if it hasn't finished loading
+      // yet) — never let a silent background restore override explicit user intent.
+      if (loadStartedRef.current) return;
+      loadStartedRef.current = true;
       const restoredFile = new File([record.fileBytes], record.fileName, {
         type: record.fileType || 'application/pdf'
       });
@@ -950,9 +983,6 @@ export default function PdfSignTool() {
             <span className="list-count" style={{ fontWeight: '600' }}>
               Signing: {file.name}
             </span>
-            <button type="button" className="clear-all" onClick={reset}>
-              Start over
-            </button>
           </div>
 
           {status === 'editing' && (
@@ -1113,11 +1143,29 @@ export default function PdfSignTool() {
 
                   <button
                     type="button"
+                    className="sign-tool-btn sign-tool-btn-reset"
+                    onClick={() => setConfirmResetOpen(true)}
+                    title="Discard your work and start over"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 2v6h6" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8" />
+                    </svg>
+                    Start over
+                  </button>
+
+                  <button
+                    type="button"
                     className="sign-tool-btn sign-tool-btn-download"
                     onClick={handleSavePdf}
                     title="Save your changes and download the signed PDF"
                   >
-                    Download
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span className="sign-tool-btn-text">Download</span>
                   </button>
                 </div>
               </div>
@@ -1486,6 +1534,44 @@ export default function PdfSignTool() {
                 disabled={undoSelection.size === 0}
               >
                 Revert selected
+              </button>
+            </div>
+          </dialog>
+        </>
+      )}
+
+      {/* Start-over confirmation */}
+      {confirmResetOpen && (
+        <>
+          <div className="sign-dropdown-backdrop" style={{ zIndex: 999 }} onClick={() => setConfirmResetOpen(false)} />
+          <dialog open className="sig-dialog" style={{ position: 'fixed', top: '20vh', zIndex: 1000, margin: '0 auto', maxWidth: '26rem' }} aria-labelledby="confirm-reset-title">
+            <div className="sig-dialog-header">
+              <h3 id="confirm-reset-title">Start over?</h3>
+              <button type="button" className="sig-dialog-close" onClick={() => setConfirmResetOpen(false)} aria-label="Close dialog">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </button>
+            </div>
+            <div className="sig-dialog-body" style={{ padding: '0.5rem 1.5rem 1.25rem' }}>
+              <p style={{ margin: 0, color: 'var(--color-muted)', lineHeight: 1.5 }}>
+                This clears the current document and removes your saved draft. Your annotations can’t be recovered afterwards.
+              </p>
+            </div>
+            <div className="sig-dialog-footer">
+              <button type="button" className="sig-btn sig-btn-secondary" onClick={() => setConfirmResetOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sig-btn sig-btn-primary"
+                style={{ background: 'var(--color-danger)' }}
+                onClick={() => {
+                  setConfirmResetOpen(false);
+                  reset();
+                }}
+              >
+                Discard &amp; start over
               </button>
             </div>
           </dialog>

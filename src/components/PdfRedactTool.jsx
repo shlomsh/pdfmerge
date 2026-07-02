@@ -4,7 +4,6 @@ import PdfPageCanvas from './PdfPageCanvas.jsx';
 import { getPdfjs, uniqueId, seedUniqueId } from '../lib/sign.js';
 import { redactPdf } from '../lib/redact.js';
 import { useDraftPersistence } from '../lib/useDraftPersistence.js';
-import { Eraser } from 'lucide-preact';
 
 export default function PdfRedactTool() {
   const [file, setFile] = useState(null);
@@ -18,6 +17,7 @@ export default function PdfRedactTool() {
 
   const [activeStyle, setActiveStyle] = useState('blackout'); // 'blackout' | 'blur'
   const [drawingState, setDrawingState] = useState(null); // { pageIndex, startX, startY, currentX, currentY }
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const workspaceRef = useRef(null);
@@ -41,6 +41,12 @@ export default function PdfRedactTool() {
   const pageWrapperRefs = useRef([]);
   const downloadRef = useRef(null);
   const fileBytesRef = useRef(null);
+  const loadIdRef = useRef(0);
+  // Whichever of {manual file pick, draft restore} happens first (in call order) wins
+  // outright; the other is skipped entirely. This closes the gap the loadId guard alone
+  // doesn't cover: a slow draft restore that resolves *after* a fast manual pick has
+  // already finished editing would otherwise still be "the newer call" and clobber it.
+  const loadStartedRef = useRef(false);
 
   // Focus download button on success
   useEffect(() => {
@@ -58,7 +64,14 @@ export default function PdfRedactTool() {
 
   // Core loader shared by fresh file picks and draft restore. `bytes` is the source
   // PDF's ArrayBuffer; `presetElements` seeds restored redaction boxes.
+  //
+  // Draft restore reads from IndexedDB asynchronously, so it can still be in flight
+  // when the user drops/picks a fresh file — two overlapping loadPdf calls would
+  // otherwise race, and whichever's awaits happened to resolve last would silently
+  // clobber the other's state. Tag each call with an id and ignore any state updates
+  // from a call that's been superseded by a newer one.
   const loadPdf = async (selected, bytes, presetElements = [], restored = false) => {
+    const loadId = ++loadIdRef.current;
     setFile(selected);
     setStatus('loading');
     setProgress(0);
@@ -68,7 +81,9 @@ export default function PdfRedactTool() {
 
     try {
       const lib = await getPdfjs();
+      if (loadIdRef.current !== loadId) return;
       const doc = await lib.getDocument({ data: bytes.slice(0) }).promise;
+      if (loadIdRef.current !== loadId) return;
 
       setPdfDocument(doc);
       setNumPages(doc.numPages);
@@ -79,6 +94,7 @@ export default function PdfRedactTool() {
           : `Loaded PDF "${selected.name}" with ${doc.numPages} pages.`
       );
     } catch (err) {
+      if (loadIdRef.current !== loadId) return;
       console.error(err);
       setStatus('error');
       setAnnouncement('Failed to load PDF file.');
@@ -94,6 +110,10 @@ export default function PdfRedactTool() {
       return;
     }
 
+    // Claim the load slot synchronously, before the arrayBuffer() await, so a draft
+    // restore resolving in that gap sees the claim and backs off instead of racing us.
+    loadStartedRef.current = true;
+
     const selected = pdfs[0];
     const bytes = await selected.arrayBuffer();
     await loadPdf(selected, bytes, []);
@@ -107,6 +127,10 @@ export default function PdfRedactTool() {
     extra: {},
     status,
     onRestore: (record) => {
+      // A manual pick already claimed the load slot (even if it hasn't finished loading
+      // yet) — never let a silent background restore override explicit user intent.
+      if (loadStartedRef.current) return;
+      loadStartedRef.current = true;
       const restoredFile = new File([record.fileBytes], record.fileName, {
         type: record.fileType || 'application/pdf'
       });
@@ -244,20 +268,11 @@ export default function PdfRedactTool() {
 
   return (
     <BasePdfTool
-      status={status === 'redacting' ? 'loading' : status} // Map 'redacting' to 'loading' UI
-      progress={progress}
-      downloadUrl={downloadUrl}
-      downloadFileName={file ? `redacted_${file.name}` : ''}
+      hasFiles={!!file}
       onFilesAdded={handleFilesAdded}
-      onReset={reset}
-      downloadRef={downloadRef}
-      onProcess={handleSavePdf}
-      actionButtonText="Redact PDF"
-      actionIcon={<Eraser size={18} strokeWidth={2.5} />}
-      canProcess={elements.length > 0}
-      dropzoneText="Select or drop a PDF to redact"
       multiple={false}
-      acceptedFileTypes=".pdf,application/pdf"
+      accept=".pdf,application/pdf"
+      emptyStateMessage="Select or drop a PDF to redact"
     >
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
@@ -265,6 +280,7 @@ export default function PdfRedactTool() {
 
       {status === 'editing' && pdfDocument && (
         <div className="sign-workspace" ref={workspaceRef}>
+          <div className="sign-toolbar-container">
           <div className="sign-toolbar" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--color-surface-hover)', padding: '4px', borderRadius: 'var(--radius)' }}>
               <button
@@ -286,9 +302,6 @@ export default function PdfRedactTool() {
                 Blur
               </button>
             </div>
-            <p className="hint-message" style={{ margin: 0, flex: 1 }}>
-              Click and drag on any page to hide sensitive text.
-            </p>
             <div className="sign-tool-separator" />
             <button
               type="button"
@@ -312,6 +325,41 @@ export default function PdfRedactTool() {
                 </svg>
               )}
             </button>
+
+            <div className="sign-tool-separator" />
+
+            <button
+              type="button"
+              className="sign-tool-btn sign-tool-btn-reset"
+              onClick={() => setConfirmResetOpen(true)}
+              title="Discard your work and start over"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 2v6h6" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8" />
+              </svg>
+              Start over
+            </button>
+
+            <button
+              type="button"
+              className="sign-tool-btn sign-tool-btn-download"
+              onClick={handleSavePdf}
+              disabled={elements.length === 0}
+              title={elements.length === 0 ? 'Add at least one redaction box first' : 'Apply redactions and download'}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span className="sign-tool-btn-text">Download</span>
+            </button>
+          </div>
+          </div>
+
+          <div className="sign-help-tip" style={{ color: 'var(--color-muted-light)' }}>
+            <span>Click and drag on any page to hide sensitive text.</span>
           </div>
 
           <div className="sign-pages-container">
@@ -414,6 +462,91 @@ export default function PdfRedactTool() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Redacting progress */}
+      {status === 'redacting' && (
+        <div style={{ textAlign: 'center', width: '100%', padding: '3rem 0' }}>
+          <span className="merge-button-progress" style={{ color: 'var(--color-text)' }}>
+            <svg className="progress-ring" width="22" height="22" viewBox="0 0 40 40">
+              <circle className="progress-ring-track" cx="20" cy="20" r="18" stroke="var(--color-border-strong)" />
+            </svg>
+            Applying redactions… {Math.round(progress * 100)}%
+          </span>
+        </div>
+      )}
+
+      {/* Success download */}
+      {status === 'done' && downloadUrl && (
+        <div style={{ width: '100%', marginTop: '1rem' }}>
+          <a
+            ref={downloadRef}
+            className="download-button"
+            href={downloadUrl}
+            download={`redacted_${file.name}`}
+          >
+            <svg className="download-check" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" className="check-circle" stroke="#fff" />
+              <path d="M7.5 12.5l3 3 6-6.5" className="check-mark" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+            Download Redacted PDF
+          </a>
+          <button type="button" className="start-over" onClick={() => setConfirmResetOpen(true)}>
+            Start over
+          </button>
+        </div>
+      )}
+
+      {/* Error */}
+      {status === 'error' && (
+        <div className="error-message" role="alert" style={{ width: '100%' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <circle cx="12" cy="16" r="1" fill="currentColor" />
+          </svg>
+          <span>
+            <strong>Redaction failed.</strong> The PDF may be password-protected or corrupted.
+          </span>
+        </div>
+      )}
+
+      {/* Start-over confirmation */}
+      {confirmResetOpen && (
+        <>
+          <div className="sign-dropdown-backdrop" style={{ zIndex: 999 }} onClick={() => setConfirmResetOpen(false)} />
+          <dialog open className="sig-dialog" style={{ position: 'fixed', top: '20vh', zIndex: 1000, margin: '0 auto', maxWidth: '26rem' }} aria-labelledby="confirm-reset-title">
+            <div className="sig-dialog-header">
+              <h3 id="confirm-reset-title">Start over?</h3>
+              <button type="button" className="sig-dialog-close" onClick={() => setConfirmResetOpen(false)} aria-label="Close dialog">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </button>
+            </div>
+            <div className="sig-dialog-body" style={{ padding: '0.5rem 1.5rem 1.25rem' }}>
+              <p style={{ margin: 0, color: 'var(--color-muted)', lineHeight: 1.5 }}>
+                This clears the current document and removes your saved draft. Your redactions can’t be recovered afterwards.
+              </p>
+            </div>
+            <div className="sig-dialog-footer">
+              <button type="button" className="sig-btn sig-btn-secondary" onClick={() => setConfirmResetOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sig-btn sig-btn-primary"
+                style={{ background: 'var(--color-danger)' }}
+                onClick={() => {
+                  setConfirmResetOpen(false);
+                  reset();
+                }}
+              >
+                Discard &amp; start over
+              </button>
+            </div>
+          </dialog>
+        </>
       )}
     </BasePdfTool>
   );

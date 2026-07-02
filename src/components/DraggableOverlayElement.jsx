@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { computePosition, offset, flip, shift } from '@floating-ui/dom';
+import { computePosition, offset, flip } from '@floating-ui/dom';
 import { tintImageDataUrl } from '../lib/sign.js';
 import ColorPickerMenu from './ColorPickerMenu.jsx';
 import FontPickerMenu from './FontPickerMenu.jsx';
@@ -44,33 +44,45 @@ export default function DraggableOverlayElement({
   const actionsRef = useRef(null);
   const prevTextWidthRef = useRef(null);
 
-  // Keep the floating toolbar on-screen: its default position (above, flush
-  // left with the element) clips off the top/right edge for elements placed
-  // near the top or right of the page. Positioning is delegated to Floating
-  // UI (@floating-ui/dom) rather than hand-rolled — it derives the toolbar's
-  // placement purely from the anchor's (elementRef) rect plus the toolbar's
-  // own size, never from the toolbar's own already-positioned rect, so it
-  // can't create the feedback loop a naive "measure my own rect, then flip"
-  // approach does (flip right → rect moves on-screen → flip back left →
-  // off-screen again → ... — the toolbar "freaking out" near edges).
-  // `flip()` swaps to below the element when there's no room above; `shift()`
-  // nudges it sideways to stay within the viewport instead of a hard
-  // left/right toggle.
+  // Keep the floating toolbar on-screen vertically: its default position
+  // (above, flush with the top of the element) clips off the top edge for
+  // elements placed near the top of the page. Positioning is delegated to
+  // Floating UI (@floating-ui/dom) rather than hand-rolled — it derives the
+  // toolbar's placement purely from the anchor's (elementRef) rect plus the
+  // toolbar's own size, never from the toolbar's own already-positioned
+  // rect, so it can't create the feedback loop a naive "measure my own
+  // rect, then flip" approach does (flip down → rect moves on-screen → flip
+  // back up → off-screen again → ... — the toolbar "freaking out" near the
+  // top edge). `flip()` swaps to below the element when there's no room
+  // above.
+  //
+  // Only `top` is applied from the computed result — horizontal alignment
+  // (which edge of the element the toolbar hugs) is pure CSS, via the
+  // `sign-element-actions--rtl` class below, not JS. The toolbar is a DOM
+  // child of the element it's anchored to, so CSS `left`/`right` already
+  // track the element's edge on every reflow for free. This matters for RTL
+  // text boxes, which grow leftward from a fixed right edge and shift
+  // `element.left` on every keystroke (see the width-growth effect below):
+  // if horizontal position were also JS-computed, it would depend on
+  // `element.left` and re-run computePosition() every keystroke, and the
+  // one-frame lag between the box's synchronous DOM move and the toolbar's
+  // async Promise-resolved catch-up is what caused the toolbar to visibly
+  // flicker while typing RTL text. Vertical position never depends on
+  // `element.left`, so it doesn't have this problem.
   useEffect(() => {
     if (!isActive || !actionsRef.current || !elementRef.current) return;
     const anchorEl = elementRef.current;
     const toolbarEl = actionsRef.current;
     let cancelled = false;
     computePosition(anchorEl, toolbarEl, {
-      placement: 'top-start',
-      middleware: [offset(8), flip({ fallbackPlacements: ['bottom-start'] }), shift({ padding: 8 })]
-    }).then(({ x, y }) => {
+      placement: 'top',
+      middleware: [offset(8), flip({ fallbackPlacements: ['bottom'] })]
+    }).then(({ y }) => {
       if (cancelled) return;
-      toolbarEl.style.left = `${x}px`;
       toolbarEl.style.top = `${y}px`;
     });
     return () => { cancelled = true; };
-  }, [isActive, element.left, element.top]);
+  }, [isActive, element.top]);
 
   // Grow/shrink the text box to fit its content in both directions — width for
   // the widest line (RTL and long/short text otherwise sit inside a leftover
@@ -299,7 +311,7 @@ export default function DraggableOverlayElement({
       {/* Element options bar */}
       <div
         ref={actionsRef}
-        className="sign-element-actions"
+        className={`sign-element-actions${textDirection === 'rtl' ? ' sign-element-actions--rtl' : ''}`}
       >
           {element.type === 'text' && (
             <>

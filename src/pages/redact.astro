@@ -31,6 +31,11 @@ const faq = [
     answer:
       'There are no artificial limits. However, because redacted pages are converted to high-quality images, your final file size may be larger than the original document.',
   },
+  {
+    question: 'If my browser crashes mid-redaction, do I lose my boxes?',
+    answer:
+      'No. As you draw blackout and blur boxes, the tool auto-saves your progress to local storage in your own browser, and restores your boxes automatically the next time you open the tool on the same device. This happens on your device, so your file is still never uploaded, and your saved draft is only cleared when you click Start over.',
+  },
 ];
 ---
 
@@ -45,7 +50,7 @@ const faq = [
       <h1>Redact PDF Free: No Sign-Up, Runs Locally</h1>
     </div>
     <p>
-      Black out or blur sensitive text like SSNs and addresses, then flatten the file so it can't be copied or extracted.
+      Black out or blur sensitive text like SSNs and addresses, then flatten the file so it can't be copied or extracted. Your redaction boxes are auto-saved on your device as you work, so a crash or accidental refresh never loses your progress.
     </p>
   </header>
 
@@ -95,6 +100,11 @@ const faq = [
       <h3>Is there a file size limit?</h3>
       <p>
         There are no artificial limits. However, because redacted pages are converted to high-quality images, your final file size may be larger than the original document.
+      </p>
+
+      <h3>If my browser crashes mid-redaction, do I lose my boxes?</h3>
+      <p>
+        No. As you draw blackout and blur boxes, the tool auto-saves your progress to local storage in your own browser, and restores your boxes automatically the next time you open the tool on the same device. This happens on your device, so your file is still never uploaded, and your saved draft is only cleared when you click Start over.
       </p>
     </section>
   </Footer>

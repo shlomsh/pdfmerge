@@ -1268,14 +1268,82 @@ footer a {
   pointer-events: auto; /* Re-enable clicks for the toolbar itself */
   display: flex;
   align-items: center;
+  /* Wrap onto multiple rows instead of overflowing the viewport on narrow
+     screens — the toolbar has too many buttons to ever fit one row on mobile.
+     max-width keeps it inside the sticky container; row-gap spaces wrapped rows. */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
   gap: var(--space-2);
+  row-gap: var(--space-2);
   padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border: 1px solid rgba(228, 228, 237, 0.8);
-  border-radius: var(--radius-pill);
+  /* Rounded-card radius reads well both as a single row and when the buttons
+     wrap to multiple rows on narrow screens (a full pill radius turns a tall
+     wrapped box into an ugly circle). The pill is restored at >=920px below,
+     where the whole toolbar (~890px with separators) fits on one row. */
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Wide enough for the full toolbar on one row: keep the original floating-pill
+   look and prevent wrapping. */
+@media (min-width: 920px) {
+  .sign-toolbar {
+    flex-wrap: nowrap;
+    border-radius: var(--radius-pill);
+  }
+}
+
+/* On narrow screens the toolbar wraps to a rounded card (see base rule). The
+   vertical separators that group controls on one desktop row become stray
+   floating lines once the buttons wrap, so drop them here; keep a little
+   horizontal breathing room in the sticky container. Horizontal scroll is
+   deliberately avoided — overflow-x:auto forces overflow-y to clip, which would
+   cut off the signature dropdown that opens below its toolbar button. */
+@media (max-width: 919px) {
+  .sign-toolbar-container {
+    padding: 0 var(--space-3);
+  }
+
+  /* Keep the whole toolbar on ONE line even on an iPhone: collapse the buttons
+     to icons only and tighten spacing so every control fits without wrapping.
+     nowrap + a fitting width means no overflow, so nothing is clipped (the
+     signature dropdown stays visible). */
+  .sign-toolbar {
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    padding: 0.35rem 0.4rem;
+    border-radius: var(--radius-pill);
+  }
+
+  .sign-tool-separator {
+    display: none;
+  }
+
+  /* Collapse the tool buttons to icons only. font-size:0 hides the text labels
+     (bare text nodes and the .sign-tool-btn-text span alike) while the fixed-px
+     SVG icons are unaffected; the labels remain in the accessibility tree
+     (unlike display:none), and every button also has a title tooltip. gap:0
+     removes the space the now-empty label left behind. Scoped under
+     .sign-toolbar to out-specify the base .sign-tool-btn font-size, which is
+     defined later in this file. */
+  .sign-toolbar .sign-tool-btn {
+    font-size: 0;
+    gap: 0;
+    padding: 0.4rem;
+  }
+
+  /* Redact's Blackout/Blur mode toggles also collapse to their colour swatch
+     only, so the redact toolbar fits one line too. !important overrides the
+     inline font-size/padding set on these buttons in the component. */
+  .sign-toolbar .sign-element-btn {
+    font-size: 0 !important;
+    padding: 0.4rem !important;
+  }
 }
 
 .sign-tool-btn {
@@ -1286,6 +1354,7 @@ footer a {
   font: inherit;
   font-size: 0.88rem;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-text);
   background: transparent;
   border: none;
@@ -1316,6 +1385,19 @@ footer a {
 .sign-tool-btn-download:hover {
   background: var(--color-primary-hover);
   color: #fff;
+}
+
+/* Start over: persistent danger-tinted affordance, fills on hover. Sits left of
+   the primary Download button without competing with it. */
+.sign-tool-btn-reset {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-danger) 35%, transparent);
+}
+
+.sign-tool-btn-reset:hover {
+  color: #fff;
+  background: var(--color-danger);
 }
 
 .sign-tool-separator {
@@ -1407,10 +1489,15 @@ footer a {
   height: 44px;
 }
 
-/* Edit controls: rich text toolbar. Position (top/left) is set inline by
-   Floating UI in DraggableOverlayElement.jsx, not here — the -44px/0 below
-   is only the pre-hydration fallback so the toolbar starts roughly in place
-   before the first computePosition() resolves. */
+/* Edit controls: rich text toolbar. Vertical position (top) is set inline by
+   Floating UI in DraggableOverlayElement.jsx, not here — the -44px below is
+   only the pre-hydration fallback so the toolbar starts roughly in place
+   before the first computePosition() resolves. Horizontal position is pure
+   CSS (left here, right via .sign-element-actions--rtl below), not JS: the
+   toolbar is a DOM child of the element it's anchored to, so it already
+   tracks the element's edge for free on every reflow, with no per-keystroke
+   recompute and no async lag — see the comment in DraggableOverlayElement.jsx
+   on why that matters for RTL text boxes, which shift `left` every keystroke. */
 .sign-element-actions {
   position: absolute;
   top: -44px;
@@ -1428,6 +1515,11 @@ footer a {
   pointer-events: none;
   transition: opacity 0.15s ease;
   white-space: nowrap;
+}
+
+.sign-element-actions--rtl {
+  left: auto;
+  right: 0;
 }
 
 /* Toolbar visibility is tied only to true selection (.active), not :hover —

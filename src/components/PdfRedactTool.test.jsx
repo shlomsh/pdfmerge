@@ -46,7 +46,7 @@ describe('PdfRedactTool UI flow', () => {
 
     const dropzone = container.querySelector('.dropzone');
     expect(dropzone).not.toBeNull();
-    expect(dropzone.textContent).toContain('Drop PDF');
+    expect(dropzone.textContent).toContain('Select or drop a PDF to redact');
   });
 
   it('transitions to editing state when a file is selected', async () => {
@@ -70,7 +70,7 @@ describe('PdfRedactTool UI flow', () => {
     });
 
     // Verify hint message appears indicating editing mode
-    const header = container.querySelector('.hint-message');
+    const header = container.querySelector('.sign-help-tip');
     expect(header).not.toBeNull();
     expect(header.textContent).toContain('hide sensitive text');
     
